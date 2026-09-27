@@ -26,7 +26,7 @@ async function runCliE2E() {
     "--list",
     "--json",
   ]);
-  const parsed = JSON.parse(listJson.stdout.trim());
+  const parsed: unknown = JSON.parse(listJson.stdout.trim());
   assert.ok(Array.isArray(parsed));
 
   // Test --list with --exclude
