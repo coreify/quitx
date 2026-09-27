@@ -6,8 +6,8 @@ const mockSelect =
   vi.fn<(...args: unknown[]) => Promise<string | symbol | boolean>>();
 const mockMultiselect =
   vi.fn<(...args: unknown[]) => Promise<string[] | symbol>>();
-const mockLogInfo = vi.fn();
-const mockLogSuccess = vi.fn();
+const mockLogInfo = vi.fn<(...args: unknown[]) => void>();
+const mockLogSuccess = vi.fn<(...args: unknown[]) => void>();
 
 vi.mock("@clack/prompts", () => ({
   intro: (...args: unknown[]) => {
