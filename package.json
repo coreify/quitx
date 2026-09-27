@@ -1,10 +1,13 @@
 {
-  "name": "quitx",
+  "name": "@coreify/quitx",
   "version": "0.1.0",
   "description": "A macOS CLI for viewing running GUI applications and quitting them properly.",
   "type": "module",
   "bin": {
     "quitx": "./dist/cli.js"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "files": [
     "dist",
