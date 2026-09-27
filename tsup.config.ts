@@ -9,5 +9,6 @@ export default defineConfig({
   platform: "node",
   target: "node20",
   treeshake: true,
+  external: ["@clack/core", "@clack/prompts", "execa"],
   banner: { js: "#!/usr/bin/env node" },
 });
