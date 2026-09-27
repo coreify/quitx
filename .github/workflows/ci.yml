@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    name: Check & Test (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run check
+      - run: npm run test:cli
+
+  platform-guard:
+    name: Platform Guard (Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --ignore-scripts
+      - run: npm run build
+      - name: Verify non-macOS rejection
+        run: |
+          OUTPUT=$(node dist/cli.js 2>&1 || true)
+          echo "$OUTPUT"
+          echo "$OUTPUT" | grep -q "quitx only works on macOS"
