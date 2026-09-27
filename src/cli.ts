@@ -1,4 +1,4 @@
-import { isCancel, note, select, spinner } from "@clack/prompts";
+import { isCancel, select, spinner } from "@clack/prompts";
 import { readFile } from "node:fs/promises";
 import { allCommand } from "./commands/all";
 import { handleConfigCli } from "./commands/config";
@@ -231,9 +231,8 @@ export async function handleManualUpdateCheck(
     }
 
     if (result.updateAvailable) {
-      note(
-        `Run: npm install --global @coreify/quitx@latest`,
-        "Upgrade Available",
+      console.log(
+        "\n  Upgrade Available: Run npm install --global @coreify/quitx@latest\n",
       );
       const answer = await select({
         message: `Install v${result.latestVersion} now?`,
