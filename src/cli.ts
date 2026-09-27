@@ -64,6 +64,8 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
       options.includeFinder = true;
     } else if (arg === "-b" || arg === "--background") {
       options.includeBackground = true;
+    } else if (arg === "--never-quit-music") {
+      options.neverQuitMusic = true;
     } else if (arg === "--config") {
       options.manageConfig = true;
     } else if (arg === "--exclude") {

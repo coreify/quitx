@@ -21,6 +21,7 @@ export interface QuitxConfig {
   includeBackground: boolean;
   groupBackground: boolean;
   defaultSelectAll: boolean;
+  neverQuitMusic: boolean;
 }
 
 export interface CliOptions {
@@ -37,6 +38,7 @@ export interface CliOptions {
   manageConfig?: boolean | undefined;
   includeFinder?: boolean | undefined;
   includeBackground?: boolean | undefined;
+  neverQuitMusic?: boolean | undefined;
   apps?: string[] | undefined;
 }
 

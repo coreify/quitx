@@ -42,6 +42,7 @@ describe("config storage", () => {
       includeBackground: false,
       groupBackground: true,
       defaultSelectAll: true,
+      neverQuitMusic: false,
     });
   });
 
@@ -54,6 +55,7 @@ describe("config storage", () => {
         includeBackground: false,
         groupBackground: true,
         defaultSelectAll: true,
+        neverQuitMusic: false,
       },
       TEST_FILE,
     );
@@ -61,6 +63,7 @@ describe("config storage", () => {
     expect(loaded.exclude).toEqual(["Spotify", "Slack"]);
     expect(loaded.groupBackground).toBe(true);
     expect(loaded.defaultSelectAll).toBe(true);
+    expect(loaded.neverQuitMusic).toBe(false);
   });
 
   it("adds excluded apps without duplicates", () => {

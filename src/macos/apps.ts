@@ -114,10 +114,57 @@ export function sortApps(apps: readonly AppInfo[]): AppInfo[] {
   );
 }
 
+export const KNOWN_MUSIC_BUNDLE_IDS = new Set([
+  "com.apple.music",
+  "com.spotify.client",
+  "com.tidal.desktop",
+  "com.github.th-ch.youtube-music",
+  "app.ytmdesktop.ytmdesktop",
+  "com.amazon.music",
+  "com.deezer.deezer-desktop",
+  "com.coppertino.vox",
+  "com.audirvana.audirvana-plus",
+  "com.audirvana.audirvana",
+  "com.swinsian.swinsian",
+  "cider.sh",
+  "com.cider.cider",
+]);
+
+export const KNOWN_MUSIC_APP_NAMES = new Set([
+  "music",
+  "apple music",
+  "spotify",
+  "tidal",
+  "youtube music",
+  "amazon music",
+  "deezer",
+  "qobuz",
+  "soundcloud",
+  "pandora",
+  "vox",
+  "audirvana",
+  "foobar2000",
+  "swinsian",
+  "cider",
+]);
+
+export function isMusicApp(app: AppInfo): boolean {
+  const nameLower = app.name.toLowerCase().trim();
+  const bundleLower = app.bundleId?.toLowerCase().trim();
+  if (bundleLower && KNOWN_MUSIC_BUNDLE_IDS.has(bundleLower)) {
+    return true;
+  }
+  if (KNOWN_MUSIC_APP_NAMES.has(nameLower)) {
+    return true;
+  }
+  return false;
+}
+
 export interface FilterOptions {
   exclude?: readonly string[] | undefined;
   includeFinder?: boolean | undefined;
   groupBackground?: boolean | undefined;
+  neverQuitMusic?: boolean | undefined;
 }
 
 export function filterApps(
@@ -131,6 +178,7 @@ export function filterApps(
   const exclude = opts.exclude ?? [];
   const includeFinder = opts.includeFinder ?? false;
   const groupBackground = opts.groupBackground ?? true;
+  const neverQuitMusic = opts.neverQuitMusic ?? false;
 
   const excludeSet = new Set(exclude.map((e) => e.toLowerCase().trim()));
   const eligible: AppInfo[] = [];
@@ -147,6 +195,10 @@ export function filterApps(
       if (nameLower === "finder" || bundleLower === "com.apple.finder") {
         continue;
       }
+    }
+
+    if (neverQuitMusic && isMusicApp(app)) {
+      continue;
     }
 
     if (
@@ -210,6 +262,7 @@ export interface GetRunningAppsOptions {
   includeFinder?: boolean;
   includeBackground?: boolean;
   groupBackground?: boolean;
+  neverQuitMusic?: boolean;
 }
 
 export async function getRunningApps(
@@ -232,6 +285,7 @@ export async function getRunningApps(
       exclude: opts.exclude ?? [],
       includeFinder: opts.includeFinder ?? false,
       groupBackground: opts.groupBackground ?? true,
+      neverQuitMusic: opts.neverQuitMusic ?? false,
     };
     includeBackground = opts.includeBackground ?? false;
     exec = executor;
@@ -241,6 +295,7 @@ export async function getRunningApps(
       exclude: config.exclude,
       includeFinder: config.includeFinder,
       groupBackground: config.groupBackground,
+      neverQuitMusic: config.neverQuitMusic,
     };
     includeBackground = config.includeBackground;
     exec = executor;
@@ -264,6 +319,7 @@ export async function getRunningAppsForConfig(
       includeFinder: options.includeFinder ?? config.includeFinder,
       includeBackground: options.includeBackground ?? config.includeBackground,
       groupBackground: options.groupBackground ?? config.groupBackground,
+      neverQuitMusic: options.neverQuitMusic ?? config.neverQuitMusic,
     },
     executor,
   );

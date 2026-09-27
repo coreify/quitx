@@ -149,6 +149,34 @@ async function toggleGroupBackground(): Promise<void> {
   );
 }
 
+async function toggleNeverQuitMusic(): Promise<void> {
+  const config = loadConfig();
+  const choice = await select({
+    message: `Never Quit Music Apps (current: ${config.neverQuitMusic ? "enabled" : "disabled"})`,
+    options: [
+      {
+        value: "enabled",
+        label: "Enabled",
+        hint: "Never show or quit music players (Spotify, Apple Music, Tidal, etc.) to keep your audio playing.",
+      },
+      {
+        value: "disabled",
+        label: "Disabled",
+        hint: "Include music apps in quit list normally.",
+      },
+      backOption(),
+    ],
+    initialValue: config.neverQuitMusic ? "enabled" : "disabled",
+  });
+
+  if (isCancel(choice) || choice === BACK_VALUE) return;
+  config.neverQuitMusic = choice === "enabled";
+  saveConfig(config);
+  log.success(
+    `Never quit music apps: ${config.neverQuitMusic ? "enabled" : "disabled"}`,
+  );
+}
+
 async function manageExcludedApps(): Promise<void> {
   const choice = await select({
     message: "Manage excluded apps",
@@ -265,6 +293,11 @@ export async function configCommand(): Promise<number> {
           hint: `current: ${config.groupBackground ? "enabled" : "disabled"}`,
         },
         {
+          value: "never-quit-music",
+          label: `Toggle Never Quit Music Apps`,
+          hint: `current: ${config.neverQuitMusic ? "enabled" : "disabled"}`,
+        },
+        {
           value: "finder",
           label: `Toggle Include Finder`,
           hint: `current: ${config.includeFinder ? "enabled" : "disabled"}`,
@@ -296,6 +329,7 @@ export async function configCommand(): Promise<number> {
     if (choice === "quit-mode") await toggleQuitMode();
     if (choice === "default-select") await toggleDefaultSelection();
     if (choice === "group-background") await toggleGroupBackground();
+    if (choice === "never-quit-music") await toggleNeverQuitMusic();
     if (choice === "finder") await toggleIncludeFinder();
     if (choice === "background") await toggleIncludeBackground();
     if (choice === "exclude") await manageExcludedApps();

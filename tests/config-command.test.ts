@@ -43,6 +43,7 @@ const fullConfig = (overrides: Partial<QuitxConfig> = {}): QuitxConfig => ({
   includeBackground: false,
   groupBackground: true,
   defaultSelectAll: true,
+  neverQuitMusic: false,
   ...overrides,
 });
 
@@ -256,6 +257,27 @@ describe("config command", () => {
     );
     expect(mockLogSuccess).toHaveBeenCalledWith(
       "Group background instances: disabled",
+    );
+  });
+
+  it("toggles never quit music apps to enabled", async () => {
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(fullConfig());
+    const saveSpy = vi
+      .spyOn(configModule, "saveConfig")
+      .mockImplementation(() => {});
+
+    mockSelect
+      .mockResolvedValueOnce("never-quit-music")
+      .mockResolvedValueOnce("enabled")
+      .mockResolvedValueOnce("exit");
+
+    const code = await configCommand();
+    expect(code).toBe(0);
+    expect(saveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ neverQuitMusic: true }),
+    );
+    expect(mockLogSuccess).toHaveBeenCalledWith(
+      "Never quit music apps: enabled",
     );
   });
 

@@ -307,4 +307,26 @@ describe("apps parser and filters", () => {
     };
     expect(await isAppRunning(appWithDeadPids)).toBe(false);
   });
+
+  it("filters out music apps when neverQuitMusic is true", () => {
+    const raw: AppInfo[] = [
+      { name: "Spotify", bundleId: "com.spotify.client" },
+      { name: "Music", bundleId: "com.apple.Music" },
+      { name: "TIDAL", bundleId: "com.tidal.desktop" },
+      { name: "Slack", bundleId: "com.tinyspeck.slackmacgap" },
+    ];
+
+    const withMusicExcluded = filterApps(raw, { neverQuitMusic: true });
+    expect(withMusicExcluded).toEqual([
+      { name: "Slack", bundleId: "com.tinyspeck.slackmacgap" },
+    ]);
+
+    const withMusicKept = filterApps(raw, { neverQuitMusic: false });
+    expect(withMusicKept.map((a) => a.name)).toEqual([
+      "Music",
+      "Slack",
+      "Spotify",
+      "TIDAL",
+    ]);
+  });
 });

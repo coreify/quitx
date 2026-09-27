@@ -13,6 +13,7 @@ export const DEFAULT_CONFIG: QuitxConfig = {
   includeBackground: false,
   groupBackground: true,
   defaultSelectAll: true,
+  neverQuitMusic: false,
 };
 
 export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
@@ -45,6 +46,11 @@ export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
           ? obj.groupBackgroundInstances
           : DEFAULT_CONFIG.groupBackground;
 
+    const neverQuitMusicVal =
+      typeof obj.neverQuitMusic === "boolean"
+        ? obj.neverQuitMusic
+        : DEFAULT_CONFIG.neverQuitMusic;
+
     return {
       exclude: Array.isArray(obj.exclude) ? (obj.exclude as string[]) : [],
       force:
@@ -61,6 +67,7 @@ export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
           : DEFAULT_CONFIG.includeBackground,
       groupBackground: groupBgVal,
       defaultSelectAll: defaultSelectVal,
+      neverQuitMusic: neverQuitMusicVal,
     };
   } catch {
     return { ...DEFAULT_CONFIG, exclude: [] };
