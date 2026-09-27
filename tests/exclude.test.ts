@@ -44,6 +44,7 @@ const fullConfig = (overrides: Partial<QuitxConfig> = {}): QuitxConfig => ({
   force: "normal" as const,
   includeFinder: false,
   includeBackground: false,
+  neverQuitMusic: false,
   ...overrides,
 });
 
