@@ -17,15 +17,15 @@
   ],
   "sideEffects": false,
   "license": "MIT",
-  "author": "Toufiq Hasan Kiron",
+  "author": "Coreify",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kiron0/quitx"
+    "url": "https://github.com/coreify/quitx.git"
   },
   "bugs": {
-    "url": "https://github.com/kiron0/quitx/issues"
+    "url": "https://github.com/coreify/quitx/issues"
   },
-  "homepage": "https://github.com/kiron0/quitx#readme",
+  "homepage": "https://quitx.js.org",
   "engines": {
     "node": ">=20"
   },

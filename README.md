@@ -60,4 +60,4 @@ quitx --exclude Spotify     # Add apps to persistent exclude list
 
 ## License
 
-[MIT](LICENSE) © [Toufiq Hasan Kiron](https://github.com/kiron0)
+[MIT](LICENSE) © [Coreify](https://github.com/coreify)
