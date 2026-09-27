@@ -8,25 +8,33 @@ export interface SelectorOption {
   value: string;
   label: string;
   hint?: string;
-  disabled?: boolean;
 }
 
-export function syncQuitAllState(prompt: {
-  options: SelectorOption[];
-  value?: string[];
-}): void {
-  if (!prompt.options?.some((o) => o.value === SELECT_ALL_VALUE)) {
-    return;
-  }
-  const isQuitAllSelected = prompt.value?.includes(SELECT_ALL_VALUE) ?? false;
-  if (isQuitAllSelected) {
-    prompt.value = [SELECT_ALL_VALUE];
-  }
-  for (const opt of prompt.options) {
-    if (opt.value !== SELECT_ALL_VALUE) {
-      opt.disabled = isQuitAllSelected;
+export function handleQuitAllToggle(
+  currentValue: string,
+  selectedValues: readonly string[],
+): string[] {
+  if (currentValue === SELECT_ALL_VALUE) {
+    // Toggling Quit all apps
+    if (selectedValues.includes(SELECT_ALL_VALUE)) {
+      // Unselect quit-all -> enables picking individual apps
+      return [];
     }
+    // Select quit-all -> clears individual apps and locks to quit-all
+    return [SELECT_ALL_VALUE];
   }
+
+  // Toggling an individual app
+  if (selectedValues.includes(SELECT_ALL_VALUE)) {
+    // Disabled while Quit all is selected: ignore toggle, user must unselect quit-all first
+    return [...selectedValues];
+  }
+
+  // Normal toggle of individual app
+  const isSelected = selectedValues.includes(currentValue);
+  return isSelected
+    ? selectedValues.filter((v) => v !== currentValue)
+    : [...selectedValues, currentValue];
 }
 
 export async function selectApps(
@@ -41,7 +49,6 @@ export async function selectApps(
     return {
       value: app.bundleId ?? `${app.name}-${app.pid ?? 0}`,
       label: app.name,
-      disabled: true,
       ...(hint ? { hint } : {}),
     };
   });
@@ -62,38 +69,33 @@ export async function selectApps(
     | {
         toggleValue?: () => void;
         toggleAll?: () => void;
-        toggleInvert?: () => void;
+        _value?: string;
+        value?: string[];
       }
     | undefined;
 
   const origToggleValue = proto?.toggleValue;
   const origToggleAll = proto?.toggleAll;
-  const origToggleInvert = proto?.toggleInvert;
 
   let selected: string[] | symbol;
   try {
     if (proto && origToggleValue) {
-      proto.toggleValue = function (this: unknown) {
-        origToggleValue.call(this);
-        syncQuitAllState(
-          this as { options: SelectorOption[]; value?: string[] },
-        );
+      proto.toggleValue = function (this: {
+        _value?: string;
+        value?: string[];
+      }) {
+        const cur = this._value;
+        if (!cur) return;
+        this.value = handleQuitAllToggle(cur, this.value ?? []);
       };
     }
     if (proto && origToggleAll) {
-      proto.toggleAll = function (this: unknown) {
-        origToggleAll.call(this);
-        syncQuitAllState(
-          this as { options: SelectorOption[]; value?: string[] },
-        );
-      };
-    }
-    if (proto && origToggleInvert) {
-      proto.toggleInvert = function (this: unknown) {
-        origToggleInvert.call(this);
-        syncQuitAllState(
-          this as { options: SelectorOption[]; value?: string[] },
-        );
+      proto.toggleAll = function (this: { value?: string[] }) {
+        if (this.value?.includes(SELECT_ALL_VALUE)) {
+          this.value = [];
+        } else {
+          this.value = [SELECT_ALL_VALUE];
+        }
       };
     }
 
@@ -106,7 +108,6 @@ export async function selectApps(
   } finally {
     if (proto && origToggleValue) proto.toggleValue = origToggleValue;
     if (proto && origToggleAll) proto.toggleAll = origToggleAll;
-    if (proto && origToggleInvert) proto.toggleInvert = origToggleInvert;
   }
 
   if (isCancel(selected) || !Array.isArray(selected)) {
