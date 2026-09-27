@@ -38,6 +38,8 @@ import * as appsModule from "../src/macos/apps";
 import type { QuitxConfig } from "../src/types";
 
 const fullConfig = (overrides: Partial<QuitxConfig> = {}): QuitxConfig => ({
+  groupBackground: true,
+  defaultSelectAll: true,
   exclude: [] as string[],
   force: "normal" as const,
   includeFinder: false,
