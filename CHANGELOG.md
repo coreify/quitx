@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Interactive macOS GUI application selector with Clack TUI.
-- Graceful application quit using AppleScript / System Events (⌘Q behavior).
+- Graceful application quit using `NSRunningApplication` / JXA (⌘Q behavior).
 - Direct app quitting via `--all` (`-a`) and non-interactive `--yes` (`-y`).
 - Running GUI applications listing with `--list` (`-l`) and `--json`.
 - Fallback force termination (`--force` / `-f`) for non-responsive applications.

@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildDiscoveryScript,
   filterApps,
+  formatDynamicName,
   getRunningApps,
   isAppRunning,
   isProcessAlive,
   parseAppListOutput,
-  resolveNameFromBundleId,
   sortApps,
 } from "../src/macos/apps";
 import type { AppInfo } from "../src/types";
@@ -53,10 +53,10 @@ describe("apps parser and filters", () => {
   });
 
   it("formatDynamicName derives clean title-cased names dynamically without hardcoding", () => {
-    expect(resolveNameFromBundleId("com.custom.my-app")).toBe("My app");
-    expect(resolveNameFromBundleId("com.company.GreatTool")).toBe("Great Tool");
-    expect(resolveNameFromBundleId("single")).toBe("Single");
-    expect(resolveNameFromBundleId("com.openai.chat")).toBe("Chat");
+    expect(formatDynamicName("com.custom.my-app")).toBe("My app");
+    expect(formatDynamicName("com.company.GreatTool")).toBe("Great Tool");
+    expect(formatDynamicName("single")).toBe("Single");
+    expect(formatDynamicName("com.openai.chat")).toBe("Chat");
   });
 
   it("parses fallback comma-separated output", () => {
@@ -195,16 +195,10 @@ describe("apps parser and filters", () => {
     expect(apps.map((a) => a.name)).toEqual(["Finder", "Spotify"]);
   });
 
-  it("getRunningApps falls back if primary script fails", async () => {
-    const mockExecutor = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("Primary failed"))
-      .mockResolvedValueOnce({
-        stdout: "Arc, Spotify",
-      });
+  it("getRunningApps propagates errors from the executor", async () => {
+    const mockExecutor = vi.fn().mockRejectedValue(new Error("JXA failed"));
 
-    const apps = await getRunningApps(mockExecutor);
-    expect(apps.map((a) => a.name)).toEqual(["Arc", "Spotify"]);
+    await expect(getRunningApps(mockExecutor)).rejects.toThrow("JXA failed");
   });
 
   it("isProcessAlive checks process via kill signal 0", () => {

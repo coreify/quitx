@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ScriptExecutor } from "../src/macos/applescript";
+import type { ScriptExecutor } from "../src/macos/osascript";
 import {
   forceQuitApp,
-  getQuitScript,
   quitApp,
   quitApps,
   sendQuitSignal,
@@ -13,59 +12,44 @@ function createScriptMock(
   handler: (script: string) => boolean,
 ): ScriptExecutor {
   return vi.fn().mockImplementation((_cmd: string, args: readonly string[]) => {
-    const script = args[1] ?? "";
-    if (script.includes("return (exists")) {
-      return Promise.resolve({ stdout: handler(script) ? "true" : "false" });
+    const script = args[3] ?? "";
+    if (script.includes(".terminate()")) {
+      return Promise.resolve({ stdout: "true" });
     }
-    return Promise.resolve({ stdout: "" });
+    return Promise.resolve({ stdout: handler(script) ? "true" : "false" });
   });
 }
 
 describe("quit service", () => {
-  it("generates quit script by bundleId when available", () => {
+  it("sendQuitSignal resolves when terminate returns true", async () => {
+    const mockExecutor: ScriptExecutor = vi.fn().mockResolvedValue({
+      stdout: "true",
+    });
+
     const app: AppInfo = {
       name: "Spotify",
       bundleId: "com.spotify.client",
     };
-    expect(getQuitScript(app)).toBe(
-      'tell application id "com.spotify.client" to quit',
-    );
-  });
 
-  it("generates quit script by name when bundleId missing", () => {
-    const app: AppInfo = { name: 'My "Special" App' };
-    expect(getQuitScript(app)).toBe(
-      'tell application "My \\"Special\\" App" to quit',
-    );
-  });
-
-  it("sendQuitSignal falls back to app name if bundleId script errors", async () => {
-    const mockExecutor: ScriptExecutor = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("Unknown bundle identifier"))
-      .mockResolvedValueOnce({ stdout: "" });
-
-    const app: AppInfo = {
-      name: "Spotify",
-      bundleId: "invalid.bundle.id",
-    };
-
-    await expect(sendQuitSignal(app, mockExecutor)).resolves.not.toThrow();
-    expect(mockExecutor).toHaveBeenCalledTimes(2);
-    expect(mockExecutor).toHaveBeenLastCalledWith("osascript", [
+    await expect(sendQuitSignal(app, mockExecutor)).resolves.toBeUndefined();
+    expect(mockExecutor).toHaveBeenCalledWith("osascript", [
+      "-l",
+      "JavaScript",
       "-e",
-      'tell application "Spotify" to quit',
+      expect.stringContaining("terminate()"),
+      "com.spotify.client",
+      "Spotify",
     ]);
   });
 
-  it("sendQuitSignal rethrows error when app name script errors and no bundleId", async () => {
-    const mockExecutor: ScriptExecutor = vi
-      .fn()
-      .mockRejectedValue(new Error("Generic osascript error"));
+  it("sendQuitSignal throws when terminate returns false", async () => {
+    const mockExecutor: ScriptExecutor = vi.fn().mockResolvedValue({
+      stdout: "false",
+    });
     const app: AppInfo = { name: "DirectApp" };
 
     await expect(sendQuitSignal(app, mockExecutor)).rejects.toThrow(
-      "Generic osascript error",
+      'Could not quit "DirectApp"',
     );
   });
 
@@ -274,8 +258,7 @@ describe("quit service", () => {
       const mockExecutor: ScriptExecutor = vi
         .fn()
         .mockImplementation((_cmd: string, args: readonly string[]) => {
-          const script = args[1] ?? "";
-          if (script.includes("Chrome")) {
+          if (args.includes("Google Chrome")) {
             callOrder.push("Chrome");
           }
           return Promise.resolve({ stdout: "false" });

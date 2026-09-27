@@ -1,34 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockIntro, mockOutro, mockCancel, mockLogSuccess, mockLogError } =
-  vi.hoisted(() => ({
-    mockIntro: vi.fn(),
-    mockOutro: vi.fn(),
-    mockCancel: vi.fn(),
-    mockLogSuccess: vi.fn(),
-    mockLogError: vi.fn(),
-  }));
-
 vi.mock("@clack/prompts", () => ({
-  intro: (...args: unknown[]) => {
-    mockIntro(...args);
-  },
-  outro: (...args: unknown[]) => {
-    mockOutro(...args);
-  },
-  cancel: (...args: unknown[]) => {
-    mockCancel(...args);
-  },
+  intro: vi.fn(),
+  outro: vi.fn(),
+  cancel: vi.fn(),
   log: {
-    success: (...args: unknown[]) => {
-      mockLogSuccess(...args);
-    },
-    error: (...args: unknown[]) => {
-      mockLogError(...args);
-    },
+    success: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
+import { cancel, intro, log, outro } from "@clack/prompts";
 import type { AppInfo, QuitResult } from "../src/types";
 import {
   printThanks,
@@ -111,21 +93,19 @@ describe("output utilities", () => {
 
     renderResults(results);
 
-    expect(mockLogSuccess).toHaveBeenCalledWith("App1");
-    expect(mockLogSuccess).toHaveBeenCalledWith("Force quit App2");
-    expect(mockLogError).toHaveBeenCalledWith(
-      "Could not quit App3 (Prompt open)",
-    );
+    expect(log.success).toHaveBeenCalledWith("App1");
+    expect(log.success).toHaveBeenCalledWith("Force quit App2");
+    expect(log.error).toHaveBeenCalledWith("Could not quit App3 (Prompt open)");
   });
 
   it("showIntro, showOutro, and showCancel call clack functions", () => {
     showIntro();
-    expect(mockIntro).toHaveBeenCalledWith("quitx");
+    expect(intro).toHaveBeenCalledWith("quitx");
 
     showOutro("Done");
-    expect(mockOutro).toHaveBeenCalledWith("Done");
+    expect(outro).toHaveBeenCalledWith("Done");
 
     showCancel("Aborted");
-    expect(mockCancel).toHaveBeenCalledWith("Aborted");
+    expect(cancel).toHaveBeenCalledWith("Aborted");
   });
 });

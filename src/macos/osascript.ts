@@ -5,16 +5,9 @@ export type ScriptExecutor = (
   args: readonly string[],
 ) => Promise<{ stdout: string }>;
 
-export async function runAppleScript(
-  script: string,
-  executor: ScriptExecutor = execa,
-): Promise<string> {
-  const { stdout } = await executor("osascript", ["-e", script]);
-  return stdout.trim();
-}
-
 export async function runJXA(
   script: string,
+  args: readonly string[] = [],
   executor: ScriptExecutor = execa,
 ): Promise<string> {
   const { stdout } = await executor("osascript", [
@@ -22,6 +15,7 @@ export async function runJXA(
     "JavaScript",
     "-e",
     script,
+    ...args,
   ]);
   return stdout.trim();
 }

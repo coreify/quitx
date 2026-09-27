@@ -122,9 +122,9 @@ When you run `quitx`, you are presented with an interactive terminal interface:
 ## How It Works
 
 1. **Platform Guard**: Validates that the runtime environment is macOS (`process.platform === 'darwin'`). Immediately rejects non-macOS systems.
-2. **App Discovery**: Queries `System Events` via `osascript` for non-background application processes (`background only is false`), retrieving app name, bundle identifier, and process ID.
+2. **App Discovery**: Uses `NSWorkspace` via JXA (`osascript -l JavaScript`) to list running apps, reading the localized display name, bundle identifier, and process ID.
 3. **Smart Exclusions**: Automatically filters out `Finder` (desktop shell) and `quitx` itself.
-4. **Graceful Quit**: Sends native AppleScript quit commands (`tell application id "<bundleId>" to quit`). Terminal apps are cleanly deferred so preceding apps quit first.
+4. **Graceful Quit**: Sends `NSRunningApplication.terminate()` via JXA (the same mechanism as a native menu bar app). Terminal apps are cleanly deferred so preceding apps quit first.
 5. **Exit Verification**: Verifies process termination after sending the quit signal. If `--force` is specified and the process remains active, it sends `SIGKILL`.
 
 ---

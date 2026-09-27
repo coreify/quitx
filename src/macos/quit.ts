@@ -1,9 +1,24 @@
 import { spawn } from "node:child_process";
 import type { AppInfo, QuitOptions, QuitResult } from "../types";
 import { sleep } from "../utils/sleep";
-import { runAppleScript, type ScriptExecutor } from "./applescript";
 import { isAppRunning } from "./apps";
+import { buildAppMatcherScript } from "./jxa";
+import { runJXA, type ScriptExecutor } from "./osascript";
 import { isCurrentTerminalApp } from "./terminal";
+
+const QUIT_JXA_SCRIPT = buildAppMatcherScript(`
+const bundleId = argv[0] || '';
+const name = argv[1] || '';
+const bid = app.bundleIdentifier ? app.bundleIdentifier.js : '';
+const nm = app.localizedName ? app.localizedName.js : '';
+if ((bundleId && bid === bundleId) || (name && nm === name)) {
+  return String(app.terminate());
+}
+`);
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
 
 export type DeferredQuitScheduler = (app: AppInfo, force: boolean) => void;
 
@@ -12,11 +27,11 @@ export function defaultDeferredQuitScheduler(
   force = false,
 ): void {
   try {
-    const script = getQuitScript(app);
+    const bundleId = app.bundleId ?? "";
     const cmd =
       force && app.pid
         ? `sleep 0.4 && kill -9 ${app.pid}`
-        : `sleep 0.4 && osascript -e '${script.replace(/'/g, "'\\''")}'`;
+        : `sleep 0.4 && osascript -l JavaScript -e ${shellQuote(QUIT_JXA_SCRIPT)} ${shellQuote(bundleId)} ${shellQuote(app.name)}`;
     const child = spawn("sh", ["-c", cmd], {
       detached: true,
       stdio: "ignore",
@@ -27,32 +42,17 @@ export function defaultDeferredQuitScheduler(
   }
 }
 
-export function getQuitScript(app: AppInfo): string {
-  if (app.bundleId) {
-    const escapedBundle = app.bundleId
-      .replace(/\\/g, "\\\\")
-      .replace(/"/g, '\\"');
-    return `tell application id "${escapedBundle}" to quit`;
-  }
-  const escapedName = app.name.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-  return `tell application "${escapedName}" to quit`;
-}
-
 export async function sendQuitSignal(
   app: AppInfo,
   executor?: ScriptExecutor,
 ): Promise<void> {
-  const script = getQuitScript(app);
-  try {
-    await runAppleScript(script, executor);
-  } catch (error: unknown) {
-    // If bundleId quit failed, try by app name as fallback
-    if (app.bundleId) {
-      const fallbackScript = `tell application "${app.name.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}" to quit`;
-      await runAppleScript(fallbackScript, executor);
-      return;
-    }
-    throw error;
+  const res = await runJXA(
+    QUIT_JXA_SCRIPT,
+    [app.bundleId ?? "", app.name],
+    executor,
+  );
+  if (res.trim().toLowerCase() !== "true") {
+    throw new Error(`Could not quit "${app.name}"`);
   }
 }
 

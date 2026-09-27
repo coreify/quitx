@@ -1,14 +1,14 @@
 import type { AppInfo } from "../types";
-import { runAppleScript, runJXA, type ScriptExecutor } from "./applescript";
+import { APPKIT_PREAMBLE, RUNNING_APPS, buildAppMatcherScript } from "./jxa";
+import { runJXA, type ScriptExecutor } from "./osascript";
 
 export function buildDiscoveryScript(includeBackground = false): string {
   const bg = includeBackground ? "true" : "false";
-  return `
-ObjC.import('AppKit');
+  return `${APPKIT_PREAMBLE}
 function run() {
   const includeBackground = ${bg};
   const Regular = $.NSApplicationActivationPolicyRegular;
-  const apps = $.NSWorkspace.sharedWorkspace.runningApplications;
+  const apps = ${RUNNING_APPS};
   const lines = [];
   for (let i = 0; i < apps.count; i++) {
     const app = apps.objectAtIndex(i);
@@ -19,14 +19,21 @@ function run() {
     lines.push(name + '\\t' + bundleId + '\\t' + pid);
   }
   return lines.join('\\n');
-}
-`.trim();
+}`.trim();
 }
 
 export const APP_DISCOVERY_SCRIPT = buildDiscoveryScript(false);
 
-export const FALLBACK_APP_DISCOVERY_SCRIPT =
-  'tell application "System Events" to get name of every application process whose background only is false';
+const IS_APP_RUNNING_SCRIPT = buildAppMatcherScript(`
+const name = argv[0] || '';
+const bundleId = argv[1] || '';
+if (bundleId && app.bundleIdentifier && app.bundleIdentifier.js === bundleId) {
+  return 'true';
+}
+if (name && app.localizedName && app.localizedName.js === name) {
+  return 'true';
+}
+`);
 
 export function formatDynamicName(identifier: string): string {
   const parts = identifier.split(".").filter(Boolean);
@@ -37,8 +44,6 @@ export function formatDynamicName(identifier: string): string {
   const spaced = last.replace(/[-_]/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2");
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
-
-export const resolveNameFromBundleId = formatDynamicName;
 
 export function parseAppListOutput(stdout: string): AppInfo[] {
   const trimmed = stdout.trim();
@@ -180,12 +185,7 @@ export async function getRunningApps(
   }
 
   const script = buildDiscoveryScript(includeBackground);
-  let stdout: string;
-  try {
-    stdout = await runJXA(script, exec);
-  } catch {
-    stdout = await runAppleScript(FALLBACK_APP_DISCOVERY_SCRIPT, exec);
-  }
+  const stdout = await runJXA(script, [], exec);
 
   const apps = parseAppListOutput(stdout);
   return filterApps(apps, filterOpts);
@@ -225,12 +225,9 @@ export async function isAppRunning(
   }
 
   const name = typeof target === "string" ? target : target.name;
-  const escapedName = name.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const bundleId = typeof target === "object" ? (target.bundleId ?? "") : "";
   try {
-    const res = await runAppleScript(
-      `tell application "System Events" to return (exists (first application process whose name is "${escapedName}" and background only is false))`,
-      executor,
-    );
+    const res = await runJXA(IS_APP_RUNNING_SCRIPT, [name, bundleId], executor);
     return res.trim().toLowerCase() === "true";
   } catch {
     return false;
