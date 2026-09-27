@@ -111,6 +111,8 @@ export function forceQuitApp(app: AppInfo): boolean {
   return false;
 }
 
+export const DEFAULT_QUIT_TIMEOUT_MS = 5000;
+
 export async function quitApp(
   app: AppInfo,
   options: QuitOptions = {},
@@ -122,7 +124,7 @@ export async function quitApp(
     return { app, success: true, forced: options.force ?? false };
   }
 
-  const maxTimeoutMs = options.timeoutMs ?? 2500;
+  const maxTimeoutMs = options.timeoutMs ?? DEFAULT_QUIT_TIMEOUT_MS;
   const pollIntervalMs = Math.min(150, maxTimeoutMs);
 
   try {
@@ -207,7 +209,7 @@ export async function quitApps(
   const results: QuitResult[] = [];
 
   if (otherApps.length > 0) {
-    const maxTimeoutMs = options.timeoutMs ?? 2500;
+    const maxTimeoutMs = options.timeoutMs ?? DEFAULT_QUIT_TIMEOUT_MS;
     const pollIntervalMs = Math.min(150, maxTimeoutMs);
 
     await Promise.allSettled(

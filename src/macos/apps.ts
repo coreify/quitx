@@ -62,7 +62,9 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
 
     for (const line of lines) {
       const parts = line.split("\t");
-      const rawName = parts[0]?.trim();
+      const rawName = parts[0]
+        ?.replace(/[\u200B-\u200D\u200E\u200F\uFEFF]/g, "")
+        .trim();
       if (!rawName) continue;
 
       const rawBundle = parts[1]?.trim();
@@ -99,7 +101,9 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
 
   return trimmed
     .split(",")
-    .map((name) => name.trim())
+    .map((name) =>
+      name.replace(/[\u200B-\u200D\u200E\u200F\uFEFF]/g, "").trim(),
+    )
     .filter(Boolean)
     .map((name) => ({ name }));
 }
