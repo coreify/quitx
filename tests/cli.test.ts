@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { main, parseCliArgs, VERSION } from "../src/cli";
+import { getPackageVersion, main, parseCliArgs } from "../src/cli";
 import * as allCmd from "../src/commands/all";
 import * as interactiveCmd from "../src/commands/interactive";
 import * as listCmd from "../src/commands/list";
@@ -91,10 +91,15 @@ describe("cli parser and dispatcher", () => {
     expect(helpSpy).toHaveBeenCalled();
 
     expect(await main(["--version"])).toBe(0);
-    expect(versionSpy).toHaveBeenCalledWith(VERSION);
+    expect(versionSpy).toHaveBeenCalledWith("1.0.0");
 
     helpSpy.mockRestore();
     versionSpy.mockRestore();
+  });
+
+  it("resolves version dynamically from package.json", async () => {
+    const v = await getPackageVersion();
+    expect(v).toBe("1.0.0");
   });
 
   it("dispatches to list command when --list passed", async () => {

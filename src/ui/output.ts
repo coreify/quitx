@@ -76,7 +76,7 @@ EXAMPLES:
   );
 }
 
-export function renderVersion(version = "0.1.0"): void {
+export function renderVersion(version: string): void {
   console.log(`quitx v${version}`);
 }
 

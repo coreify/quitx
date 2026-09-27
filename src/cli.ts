@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { allCommand } from "./commands/all";
 import { configCommand } from "./commands/config";
 import { excludeCommand } from "./commands/exclude";
@@ -7,7 +8,28 @@ import type { CliOptions } from "./types";
 import { printThanks, renderHelp, renderVersion } from "./ui/output";
 import { ensureMacOS, isMacOS } from "./utils/platform";
 
-export const VERSION = "0.1.0";
+export async function getPackageVersion(): Promise<string> {
+  for (const url of [
+    new URL("../package.json", import.meta.url),
+    new URL("../../package.json", import.meta.url),
+  ]) {
+    try {
+      const content = await readFile(url, "utf-8");
+      const parsed: unknown = JSON.parse(content);
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        "version" in parsed &&
+        typeof parsed.version === "string"
+      ) {
+        return parsed.version;
+      }
+    } catch {
+      // try next
+    }
+  }
+  return "unknown";
+}
 
 export function parseCliArgs(args: readonly string[]): CliOptions {
   const options: CliOptions = {
@@ -146,7 +168,8 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
   }
 
   if (options.version) {
-    renderVersion(VERSION);
+    const version = await getPackageVersion();
+    renderVersion(version);
     printThanks(options);
     return 0;
   }
