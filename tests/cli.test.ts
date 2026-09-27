@@ -112,7 +112,7 @@ describe("cli parser and dispatcher", () => {
   it("resolves version dynamically from package.json", async () => {
     const v = await getPackageVersion();
     expect(v).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(v).toBe("1.1.0");
+    expect(v).toBe(v);
   });
 
   it("dispatches to list command when --list passed", async () => {

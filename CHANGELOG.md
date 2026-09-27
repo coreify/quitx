@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.2.0
+
+### Added
+
+- Package update checking system:
+  - Automatic 6-hour interval background check against npm registry (`CHECK_INTERVAL_MS`).
+  - Interactive manual update check command `quitx check-update` and `--check-update` flag with 60-second rate-limiting cooldown.
+  - `--no-update-check` flag to bypass update checks.
+  - Direct global package upgrade via `installUpdate` (`npm install --global @coreify/quitx@latest`).
+  - Persistent update cache in `~/.quitx/update.json` storing check timestamp and ignored versions.
+  - Full JSON output support for update queries (`quitx check-update --json`).
+
 ## 1.1.0
 
 ### Added
