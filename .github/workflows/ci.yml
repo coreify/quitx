@@ -35,6 +35,13 @@ jobs:
         with:
           name: dist
           path: dist/
+      - name: Setup dependency stubs for ESM resolution
+        run: |
+          mkdir -p node_modules/@clack/prompts node_modules/execa
+          echo 'export const isCancel = () => false, spinner = () => ({ start: () => {}, stop: () => {} }), log = { success: () => {}, error: () => {}, warn: () => {} }, intro = () => {}, outro = () => {}, confirm = async () => false, cancel = () => {}, multiselect = async () => [];' > node_modules/@clack/prompts/index.js
+          echo '{"name":"@clack/prompts","type":"module","main":"./index.js"}' > node_modules/@clack/prompts/package.json
+          echo 'export const execa = async () => ({ stdout: "" });' > node_modules/execa/index.js
+          echo '{"name":"execa","type":"module","main":"./index.js"}' > node_modules/execa/package.json
       - name: Verify non-macOS rejection
         run: |
           OUTPUT=$(node dist/cli.js 2>&1 || true)
