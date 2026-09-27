@@ -37,6 +37,48 @@ export function handleQuitAllToggle(
     : [...selectedValues, currentValue];
 }
 
+export function attachQuitAllBehavior(prompt: {
+  options: SelectorOption[];
+  value?: string[];
+  cursor?: number;
+  _value?: string;
+  toggleValue?: () => void;
+  toggleAll?: () => void;
+}): void {
+  let _cursor = prompt.cursor ?? 0;
+  Object.defineProperty(prompt, "cursor", {
+    get() {
+      return _cursor;
+    },
+    set(val: number) {
+      if (prompt.value?.includes(SELECT_ALL_VALUE)) {
+        _cursor = 0;
+      } else {
+        _cursor = val;
+      }
+    },
+    configurable: true,
+  });
+
+  prompt.toggleValue = function () {
+    const cur = prompt.options[prompt.cursor ?? 0]?.value;
+    if (!cur) return;
+    prompt.value = handleQuitAllToggle(cur, prompt.value ?? []);
+    if (prompt.value.includes(SELECT_ALL_VALUE)) {
+      prompt.cursor = 0;
+    }
+  };
+
+  prompt.toggleAll = function () {
+    if (prompt.value?.includes(SELECT_ALL_VALUE)) {
+      prompt.value = [];
+    } else {
+      prompt.value = [SELECT_ALL_VALUE];
+      prompt.cursor = 0;
+    }
+  };
+}
+
 export async function selectApps(
   apps: readonly AppInfo[],
 ): Promise<AppInfo[] | symbol> {
@@ -67,35 +109,36 @@ export async function selectApps(
 
   const proto = MultiSelectPrompt?.prototype as unknown as
     | {
+        prompt?: () => Promise<unknown>;
         toggleValue?: () => void;
         toggleAll?: () => void;
         _value?: string;
         value?: string[];
+        cursor?: number;
       }
     | undefined;
 
+  const origPrompt = proto?.prompt;
   const origToggleValue = proto?.toggleValue;
   const origToggleAll = proto?.toggleAll;
 
   let selected: string[] | symbol;
   try {
-    if (proto && origToggleValue) {
-      proto.toggleValue = function (this: {
-        _value?: string;
+    if (proto && origPrompt) {
+      proto.prompt = function (this: {
+        options?: SelectorOption[];
         value?: string[];
+        cursor?: number;
+        _value?: string;
+        toggleValue?: () => void;
+        toggleAll?: () => void;
       }) {
-        const cur = this._value;
-        if (!cur) return;
-        this.value = handleQuitAllToggle(cur, this.value ?? []);
-      };
-    }
-    if (proto && origToggleAll) {
-      proto.toggleAll = function (this: { value?: string[] }) {
-        if (this.value?.includes(SELECT_ALL_VALUE)) {
-          this.value = [];
-        } else {
-          this.value = [SELECT_ALL_VALUE];
+        if (this.options?.some((o) => o.value === SELECT_ALL_VALUE)) {
+          attachQuitAllBehavior(
+            this as Parameters<typeof attachQuitAllBehavior>[0],
+          );
         }
+        return origPrompt.call(this);
       };
     }
 
@@ -106,6 +149,7 @@ export async function selectApps(
       initialValues,
     });
   } finally {
+    if (proto && origPrompt) proto.prompt = origPrompt;
     if (proto && origToggleValue) proto.toggleValue = origToggleValue;
     if (proto && origToggleAll) proto.toggleAll = origToggleAll;
   }

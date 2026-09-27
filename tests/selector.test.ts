@@ -17,6 +17,7 @@ vi.mock("@clack/prompts", () => ({
 
 import type { AppInfo } from "../src/types";
 import {
+  attachQuitAllBehavior,
   handleQuitAllToggle,
   SELECT_ALL_VALUE,
   selectApps,
@@ -139,5 +140,86 @@ describe("selector ui", () => {
 
     selected = handleQuitAllToggle("app1", selected);
     expect(selected).toEqual(["app2"]);
+  });
+
+  it("attachQuitAllBehavior locks arrow cursor when quit-all active and unlocks when unselected", () => {
+    interface TestPrompt {
+      options: { value: string; label: string }[];
+      value?: string[];
+      cursor?: number;
+      toggleValue?: () => void;
+      toggleAll?: () => void;
+    }
+
+    const prompt: TestPrompt = {
+      options: [
+        { value: SELECT_ALL_VALUE, label: "Quit all" },
+        { value: "app1", label: "App 1" },
+        { value: "app2", label: "App 2" },
+      ],
+      value: [SELECT_ALL_VALUE],
+      cursor: 0,
+    };
+
+    attachQuitAllBehavior(prompt);
+
+    // Initial state: cursor locked at 0
+    expect(prompt.cursor).toBe(0);
+    prompt.cursor = 1; // Simulate down arrow
+    expect(prompt.cursor).toBe(0);
+
+    // Unselect quit-all via toggleValue
+    prompt.toggleValue!();
+    expect(prompt.value).toEqual([]);
+
+    // Arrows now work as normal
+    prompt.cursor = 1;
+    expect(prompt.cursor).toBe(1);
+
+    // Toggle app1
+    prompt.toggleValue!();
+    expect(prompt.value).toEqual(["app1"]);
+
+    // Move to app2 and toggle
+    prompt.cursor = 2;
+    prompt.toggleValue!();
+    expect(prompt.value).toEqual(["app1", "app2"]);
+
+    // Move back to quit-all and select it again
+    prompt.cursor = 0;
+    prompt.toggleValue!();
+    expect(prompt.value).toEqual([SELECT_ALL_VALUE]);
+    expect(prompt.cursor).toBe(0);
+
+    // Arrow navigation locked again
+    prompt.cursor = 2;
+    expect(prompt.cursor).toBe(0);
+  });
+
+  it("attachQuitAllBehavior toggleAll switches between quit-all and none", () => {
+    interface TestPrompt {
+      options: { value: string; label: string }[];
+      value?: string[];
+      cursor?: number;
+      toggleValue?: () => void;
+      toggleAll?: () => void;
+    }
+
+    const prompt: TestPrompt = {
+      options: [
+        { value: SELECT_ALL_VALUE, label: "Quit all" },
+        { value: "app1", label: "App 1" },
+      ],
+      value: [SELECT_ALL_VALUE],
+      cursor: 0,
+    };
+
+    attachQuitAllBehavior(prompt);
+    prompt.toggleAll!();
+    expect(prompt.value).toEqual([]);
+
+    prompt.toggleAll!();
+    expect(prompt.value).toEqual([SELECT_ALL_VALUE]);
+    expect(prompt.cursor).toBe(0);
   });
 });
