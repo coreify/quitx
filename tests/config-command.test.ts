@@ -94,7 +94,7 @@ describe("config command", () => {
 
     mockSelect
       .mockResolvedValueOnce("finder")
-      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce("enabled")
       .mockResolvedValueOnce("exit");
 
     const code = await configCommand();
@@ -113,7 +113,7 @@ describe("config command", () => {
 
     mockSelect
       .mockResolvedValueOnce("background")
-      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce("enabled")
       .mockResolvedValueOnce("exit");
 
     const code = await configCommand();

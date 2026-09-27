@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockIntro = vi.fn();
-const mockOutro = vi.fn();
-const mockCancel = vi.fn();
-const mockLogSuccess = vi.fn();
-const mockLogError = vi.fn();
+const { mockIntro, mockOutro, mockCancel, mockLogSuccess, mockLogError } =
+  vi.hoisted(() => ({
+    mockIntro: vi.fn(),
+    mockOutro: vi.fn(),
+    mockCancel: vi.fn(),
+    mockLogSuccess: vi.fn(),
+    mockLogError: vi.fn(),
+  }));
 
 vi.mock("@clack/prompts", () => ({
   intro: (...args: unknown[]) => {

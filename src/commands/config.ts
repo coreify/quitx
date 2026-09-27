@@ -8,6 +8,7 @@ import {
 } from "../config";
 import { getRunningApps } from "../macos/apps";
 import { printThanks, showIntro, showOutro } from "../ui/output";
+import { BACK_VALUE, backOption } from "../ui/selector";
 
 async function toggleQuitMode(): Promise<void> {
   const config = loadConfig();
@@ -24,12 +25,13 @@ async function toggleQuitMode(): Promise<void> {
         label: "Force Quit",
         hint: "Immediately kills processes (SIGKILL). Unsaved work will be lost. Use when apps are unresponsive.",
       },
+      backOption(),
     ],
     initialValue: config.force,
   });
 
-  if (isCancel(choice)) return;
-  config.force = choice;
+  if (isCancel(choice) || choice === BACK_VALUE) return;
+  config.force = choice as "normal" | "force";
   saveConfig(config);
   log.success(`Quit mode set to: ${config.force}`);
 }
@@ -40,21 +42,22 @@ async function toggleIncludeFinder(): Promise<void> {
     message: `Include Finder (current: ${config.includeFinder ? "enabled" : "disabled"})`,
     options: [
       {
-        value: false,
+        value: "disabled",
         label: "Disabled",
         hint: "Finder is excluded from the quit list. Recommended — Finder restarts automatically and quitting it rarely helps.",
       },
       {
-        value: true,
+        value: "enabled",
         label: "Enabled",
         hint: "Finder appears in the quit list like any other app. Useful if you want to fully restart Finder.",
       },
+      backOption(),
     ],
-    initialValue: config.includeFinder,
+    initialValue: config.includeFinder ? "enabled" : "disabled",
   });
 
-  if (isCancel(choice)) return;
-  config.includeFinder = choice;
+  if (isCancel(choice) || choice === BACK_VALUE) return;
+  config.includeFinder = choice === "enabled";
   saveConfig(config);
   log.success(
     `Include Finder: ${config.includeFinder ? "enabled" : "disabled"}`,
@@ -67,21 +70,22 @@ async function toggleIncludeBackground(): Promise<void> {
     message: `Background Apps (current: ${config.includeBackground ? "enabled" : "disabled"})`,
     options: [
       {
-        value: false,
+        value: "disabled",
         label: "Disabled",
         hint: "Only shows foreground GUI apps. This is the default and safest option — system daemons stay hidden.",
       },
       {
-        value: true,
+        value: "enabled",
         label: "Enabled",
         hint: "Shows ALL application processes including background agents and helpers. Use with caution — quitting system processes can cause instability.",
       },
+      backOption(),
     ],
-    initialValue: config.includeBackground,
+    initialValue: config.includeBackground ? "enabled" : "disabled",
   });
 
-  if (isCancel(choice)) return;
-  config.includeBackground = choice;
+  if (isCancel(choice) || choice === BACK_VALUE) return;
+  config.includeBackground = choice === "enabled";
   saveConfig(config);
   log.success(
     `Background apps: ${config.includeBackground ? "enabled" : "disabled"}`,
@@ -95,10 +99,11 @@ async function manageExcludedApps(): Promise<void> {
       { value: "add", label: "Add running apps to exclude list" },
       { value: "remove", label: "Remove apps from exclude list" },
       { value: "view", label: "View current exclude list" },
+      backOption(),
     ],
   });
 
-  if (isCancel(choice)) return;
+  if (isCancel(choice) || choice === BACK_VALUE) return;
 
   const config = loadConfig();
 

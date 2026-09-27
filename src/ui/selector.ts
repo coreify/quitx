@@ -3,11 +3,16 @@ import { confirm, isCancel, multiselect } from "@clack/prompts";
 import type { AppInfo } from "../types";
 
 export const SELECT_ALL_VALUE = "__QUIT_ALL_APPS__";
+export const BACK_VALUE = "back";
 
 export interface SelectorOption {
   value: string;
   label: string;
   hint?: string;
+}
+
+export function backOption(): SelectorOption {
+  return { value: BACK_VALUE, label: "Back to main menu" };
 }
 
 export function handleQuitAllToggle(
