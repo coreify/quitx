@@ -16,17 +16,25 @@ jobs:
       - run: npm install
       - run: npm run check
       - run: npm run test:cli
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
 
   platform-guard:
     name: Platform Guard (Ubuntu)
+    needs: check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --force --ignore-scripts
-      - run: npm run build
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
       - name: Verify non-macOS rejection
         run: |
           OUTPUT=$(node dist/cli.js 2>&1 || true)
