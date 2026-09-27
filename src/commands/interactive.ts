@@ -98,7 +98,7 @@ export async function interactiveCommand(
   if (!options.yes) {
     const confirmation = await shouldConfirmQuit(
       targetApps.length,
-      false,
+      targetApps.length === apps.length,
       false,
     );
     if (isCancel(confirmation) || confirmation !== true) {
