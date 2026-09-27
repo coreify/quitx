@@ -49,12 +49,16 @@ OPTIONS:
   -y, --yes               Skip confirmation prompts
   -l, --list              List running GUI apps and exit
   -f, --force             Force quit apps (SIGKILL) if normal quit fails
+  -b, --background        Include background processes in app list
+      --include-finder    Include Finder in the app list
       --exclude <apps>    Add apps to persistent exclude list (comma-separated)
+      --config            Open interactive config manager
       --json              Output data in JSON format
   -h, --help              Show help information
   -v, --version           Show version number
 
 COMMANDS:
+  config                  Manage configuration interactively
   exclude                 Manage excluded applications interactively
 
 EXAMPLES:
@@ -62,6 +66,9 @@ EXAMPLES:
   $ quitx --all                   Quit all running apps (with confirmation)
   $ quitx --all --yes             Quit all running apps immediately
   $ quitx --list                  List currently running GUI apps
+  $ quitx --list --background     List all apps including background processes
+  $ quitx --list --include-finder List apps including Finder
+  $ quitx config                  Open interactive config manager
   $ quitx exclude                 Open interactive menu to manage excluded apps
   $ quitx --exclude Spotify,Slack Add Spotify and Slack to exclude list
   $ quitx Slack Discord           Quit specific apps directly

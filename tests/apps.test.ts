@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  buildDiscoveryScript,
   filterApps,
   getRunningApps,
   isAppRunning,
@@ -65,7 +66,7 @@ describe("apps parser and filters", () => {
     const iTermApps = parseAppListOutput(iTermStdout);
     expect(iTermApps).toEqual([
       {
-        name: "iTerm2",
+        name: "iTerm",
         bundleId: "com.googlecode.iterm2",
         pid: 23236,
       },
@@ -114,17 +115,38 @@ describe("apps parser and filters", () => {
     const raw: AppInfo[] = [
       { name: "Finder", bundleId: "com.apple.finder" },
       { name: "Terminal", bundleId: "com.apple.terminal" },
-      { name: "iTerm2", bundleId: "com.googlecode.iterm2" },
+      { name: "iTerm", bundleId: "com.googlecode.iterm2" },
       { name: "Spotify", bundleId: "com.spotify.client" },
       { name: "quitx", bundleId: "com.kiron.quitx" },
     ];
 
     const result = filterApps(raw);
     expect(result).toEqual([
-      { name: "iTerm2", bundleId: "com.googlecode.iterm2" },
+      { name: "iTerm", bundleId: "com.googlecode.iterm2" },
       { name: "Spotify", bundleId: "com.spotify.client" },
       { name: "Terminal", bundleId: "com.apple.terminal" },
     ]);
+  });
+
+  it("includes Finder when includeFinder is true", () => {
+    const raw: AppInfo[] = [
+      { name: "Finder", bundleId: "com.apple.finder" },
+      { name: "Spotify", bundleId: "com.spotify.client" },
+      { name: "quitx", bundleId: "com.kiron.quitx" },
+    ];
+
+    const result = filterApps(raw, { includeFinder: true });
+    expect(result.map((a) => a.name)).toEqual(["Finder", "Spotify"]);
+  });
+
+  it("excludes Finder when includeFinder is false (default)", () => {
+    const raw: AppInfo[] = [
+      { name: "Finder", bundleId: "com.apple.finder" },
+      { name: "Spotify", bundleId: "com.spotify.client" },
+    ];
+
+    const result = filterApps(raw, { includeFinder: false });
+    expect(result.map((a) => a.name)).toEqual(["Spotify"]);
   });
 
   it("filters out apps matching exclude list by name or bundleId", () => {
@@ -138,6 +160,20 @@ describe("apps parser and filters", () => {
     expect(result.map((a) => a.name)).toEqual(["Slack"]);
   });
 
+  it("filterApps accepts FilterOptions with exclude and includeFinder", () => {
+    const raw: AppInfo[] = [
+      { name: "Finder", bundleId: "com.apple.finder" },
+      { name: "Spotify", bundleId: "com.spotify.client" },
+      { name: "Discord", bundleId: "com.discord.app" },
+    ];
+
+    const result = filterApps(raw, {
+      exclude: ["discord"],
+      includeFinder: true,
+    });
+    expect(result.map((a) => a.name)).toEqual(["Finder", "Spotify"]);
+  });
+
   it("deduplicates applications with identical bundleId or name", () => {
     const raw: AppInfo[] = [
       { name: "Spotify", bundleId: "com.spotify.client", pid: 100 },
@@ -147,6 +183,18 @@ describe("apps parser and filters", () => {
     const result = filterApps(raw);
     expect(result).toHaveLength(1);
     expect(result[0]?.name).toBe("Spotify");
+  });
+
+  it("buildDiscoveryScript generates foreground-only script by default", () => {
+    const script = buildDiscoveryScript(false);
+    expect(script).toContain("background only is false");
+    expect(script).not.toContain("every application process\n");
+  });
+
+  it("buildDiscoveryScript generates all-process script when includeBackground is true", () => {
+    const script = buildDiscoveryScript(true);
+    expect(script).toContain("every application process");
+    expect(script).not.toContain("background only is false");
   });
 
   it("getRunningApps fetches, parses, and filters apps", async () => {
@@ -159,6 +207,19 @@ describe("apps parser and filters", () => {
     expect(apps).toEqual([
       { name: "Spotify", bundleId: "com.spotify.client", pid: 2 },
     ]);
+  });
+
+  it("getRunningApps accepts options object with includeFinder", async () => {
+    const mockExecutor = vi.fn().mockResolvedValue({
+      stdout:
+        "Finder\tcom.apple.finder\t1\tFinder.app\nSpotify\tcom.spotify.client\t2\tSpotify.app\n",
+    });
+
+    const apps = await getRunningApps(
+      { includeFinder: true, exclude: [] },
+      mockExecutor,
+    );
+    expect(apps.map((a) => a.name)).toEqual(["Finder", "Spotify"]);
   });
 
   it("getRunningApps falls back if primary script fails", async () => {

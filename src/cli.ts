@@ -1,4 +1,5 @@
 import { allCommand } from "./commands/all";
+import { configCommand } from "./commands/config";
 import { excludeCommand } from "./commands/exclude";
 import { interactiveCommand } from "./commands/interactive";
 import { listCommand } from "./commands/list";
@@ -18,7 +19,9 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
     const arg = args[i];
     if (!arg) continue;
 
-    if (arg === "exclude") {
+    if (arg === "config") {
+      options.manageConfig = true;
+    } else if (arg === "exclude") {
       options.manageExclude = true;
     } else if (arg === "-a" || arg === "--all") {
       options.all = true;
@@ -34,6 +37,12 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
       options.version = true;
     } else if (arg === "--json") {
       options.json = true;
+    } else if (arg === "--include-finder") {
+      options.includeFinder = true;
+    } else if (arg === "-b" || arg === "--background") {
+      options.includeBackground = true;
+    } else if (arg === "--config") {
+      options.manageConfig = true;
     } else if (arg === "--exclude") {
       const next = args[++i];
       if (next) {
@@ -99,6 +108,10 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
   }
 
   try {
+    if (options.manageConfig) {
+      return await configCommand();
+    }
+
     if (
       options.manageExclude ||
       (options.exclude && options.exclude.length > 0)

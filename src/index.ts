@@ -12,4 +12,5 @@ export { allCommand } from "./commands/all";
 export { interactiveCommand } from "./commands/interactive";
 export { listCommand } from "./commands/list";
 export { excludeCommand, manageExcludeInteractive } from "./commands/exclude";
+export { configCommand } from "./commands/config";
 export { parseCliArgs, main } from "./cli";

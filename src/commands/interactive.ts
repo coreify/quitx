@@ -25,7 +25,16 @@ export async function interactiveCommand(
   }
 
   const config = loadConfig();
-  const apps = await getRunningApps(config.exclude);
+  const useForce = options.force ?? config.force === "force";
+  const includeFinder = options.includeFinder ?? config.includeFinder;
+  const includeBackground =
+    options.includeBackground ?? config.includeBackground;
+
+  const apps = await getRunningApps({
+    exclude: config.exclude,
+    includeFinder,
+    includeBackground,
+  });
 
   if (!options.json) {
     s.stop(
@@ -105,7 +114,7 @@ export async function interactiveCommand(
     );
   }
 
-  const results = await quitApps(targetApps, { force: options.force });
+  const results = await quitApps(targetApps, { force: useForce });
 
   if (!options.json) {
     s.stop("Quitting complete");

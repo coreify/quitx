@@ -21,11 +21,29 @@ vi.mock("@clack/prompts", () => ({
   multiselect: (...args: unknown[]): Promise<string[] | symbol> =>
     mockMultiselect(...args),
   isCancel: (val: unknown): boolean => typeof val === "symbol",
+  log: {
+    info: vi.fn(),
+    success: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    message: vi.fn(),
+    step: vi.fn(),
+  },
+  spinner: () => ({ start: vi.fn(), stop: vi.fn() }),
 }));
 
 import { excludeCommand } from "../src/commands/exclude";
 import * as configModule from "../src/config";
 import * as appsModule from "../src/macos/apps";
+import type { QuitxConfig } from "../src/types";
+
+const fullConfig = (overrides: Partial<QuitxConfig> = {}): QuitxConfig => ({
+  exclude: [] as string[],
+  force: "normal" as const,
+  includeFinder: false,
+  includeBackground: false,
+  ...overrides,
+});
 
 describe("exclude command", () => {
   beforeEach(() => {
@@ -35,7 +53,7 @@ describe("exclude command", () => {
   it("adds apps directly when --exclude provided", async () => {
     const addSpy = vi
       .spyOn(configModule, "addExcludedApps")
-      .mockReturnValue({ exclude: ["Spotify", "Slack"] });
+      .mockReturnValue(fullConfig({ exclude: ["Spotify", "Slack"] }));
 
     const code = await excludeCommand({ exclude: ["Spotify", "Slack"] });
     expect(code).toBe(0);
@@ -44,9 +62,9 @@ describe("exclude command", () => {
   });
 
   it("outputs json when --json provided with --exclude", async () => {
-    vi.spyOn(configModule, "addExcludedApps").mockReturnValue({
-      exclude: ["Spotify"],
-    });
+    vi.spyOn(configModule, "addExcludedApps").mockReturnValue(
+      fullConfig({ exclude: ["Spotify"] }),
+    );
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     const code = await excludeCommand({
@@ -55,7 +73,7 @@ describe("exclude command", () => {
     });
     expect(code).toBe(0);
     expect(logSpy).toHaveBeenCalledWith(
-      JSON.stringify({ exclude: ["Spotify"] }, null, 2),
+      JSON.stringify(fullConfig({ exclude: ["Spotify"] }), null, 2),
     );
 
     logSpy.mockRestore();
@@ -71,9 +89,9 @@ describe("exclude command", () => {
 
   it("views current exclude list when view selected", async () => {
     mockSelect.mockResolvedValue("view");
-    vi.spyOn(configModule, "loadConfig").mockReturnValue({
-      exclude: ["Spotify"],
-    });
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(
+      fullConfig({ exclude: ["Spotify"] }),
+    );
 
     const code = await excludeCommand({});
     expect(code).toBe(0);
@@ -82,14 +100,14 @@ describe("exclude command", () => {
 
   it("adds apps interactively when add selected", async () => {
     mockSelect.mockResolvedValue("add");
-    vi.spyOn(configModule, "loadConfig").mockReturnValue({ exclude: [] });
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(fullConfig());
     vi.spyOn(appsModule, "getRunningApps").mockResolvedValue([
       { name: "Spotify", bundleId: "com.spotify.client" },
     ]);
     mockMultiselect.mockResolvedValue(["Spotify"]);
     const addSpy = vi
       .spyOn(configModule, "addExcludedApps")
-      .mockReturnValue({ exclude: ["Spotify"] });
+      .mockReturnValue(fullConfig({ exclude: ["Spotify"] }));
 
     const code = await excludeCommand({});
     expect(code).toBe(0);
@@ -99,13 +117,13 @@ describe("exclude command", () => {
 
   it("removes apps interactively when remove selected", async () => {
     mockSelect.mockResolvedValue("remove");
-    vi.spyOn(configModule, "loadConfig").mockReturnValue({
-      exclude: ["Spotify", "Slack"],
-    });
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(
+      fullConfig({ exclude: ["Spotify", "Slack"] }),
+    );
     mockMultiselect.mockResolvedValue(["Spotify"]);
     const removeSpy = vi
       .spyOn(configModule, "removeExcludedApps")
-      .mockReturnValue({ exclude: ["Slack"] });
+      .mockReturnValue(fullConfig({ exclude: ["Slack"] }));
 
     const code = await excludeCommand({});
     expect(code).toBe(0);

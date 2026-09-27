@@ -35,11 +35,24 @@ describe("config storage", () => {
 
   it("returns default config when file does not exist", () => {
     const config = loadConfig(join(TEST_DIR, "nonexistent.json"));
-    expect(config).toEqual({ exclude: [] });
+    expect(config).toEqual({
+      exclude: [],
+      force: "normal",
+      includeFinder: false,
+      includeBackground: false,
+    });
   });
 
   it("saves and loads config correctly", () => {
-    saveConfig({ exclude: ["Spotify", "Slack"] }, TEST_FILE);
+    saveConfig(
+      {
+        exclude: ["Spotify", "Slack"],
+        force: "normal",
+        includeFinder: false,
+        includeBackground: false,
+      },
+      TEST_FILE,
+    );
     const loaded = loadConfig(TEST_FILE);
     expect(loaded.exclude).toEqual(["Spotify", "Slack"]);
   });

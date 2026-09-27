@@ -13,6 +13,9 @@ export interface QuitResult {
 
 export interface QuitxConfig {
   exclude: string[];
+  force: "normal" | "force";
+  includeFinder: boolean;
+  includeBackground: boolean;
 }
 
 export interface CliOptions {
@@ -26,6 +29,9 @@ export interface CliOptions {
   quiet?: boolean | undefined;
   exclude?: string[] | undefined;
   manageExclude?: boolean | undefined;
+  manageConfig?: boolean | undefined;
+  includeFinder?: boolean | undefined;
+  includeBackground?: boolean | undefined;
   apps?: string[] | undefined;
 }
 

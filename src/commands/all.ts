@@ -18,7 +18,16 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
   }
 
   const config = loadConfig();
-  const apps = await getRunningApps(config.exclude);
+  const useForce = options.force ?? config.force === "force";
+  const includeFinder = options.includeFinder ?? config.includeFinder;
+  const includeBackground =
+    options.includeBackground ?? config.includeBackground;
+
+  const apps = await getRunningApps({
+    exclude: config.exclude,
+    includeFinder,
+    includeBackground,
+  });
 
   if (apps.length === 0) {
     if (options.json) {
@@ -44,7 +53,7 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
     s.start(`Quitting ${apps.length} apps...`);
   }
 
-  const results = await quitApps(apps, { force: options.force });
+  const results = await quitApps(apps, { force: useForce });
 
   if (!options.json) {
     s.stop("Quitting complete");

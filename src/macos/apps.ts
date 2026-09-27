@@ -1,11 +1,15 @@
 import type { AppInfo } from "../types";
 import { runAppleScript, type ScriptExecutor } from "./applescript";
 
-export const APP_DISCOVERY_SCRIPT = `
+export function buildDiscoveryScript(includeBackground = false): string {
+  const filter = includeBackground
+    ? "every application process"
+    : "every application process whose background only is false";
+  return `
 tell application "System Events"
-\tset names to name of every application process whose background only is false
-\tset bundles to bundle identifier of every application process whose background only is false
-\tset pids to unix id of every application process whose background only is false
+\tset names to name of ${filter}
+\tset bundles to bundle identifier of ${filter}
+\tset pids to unix id of ${filter}
 \tset outList to {}
 \trepeat with i from 1 to count of pids
 \t\tset pName to item i of names
@@ -21,6 +25,9 @@ tell application "System Events"
 \toutList as text
 end tell
 `.trim();
+}
+
+export const APP_DISCOVERY_SCRIPT = buildDiscoveryScript(false);
 
 export const FALLBACK_APP_DISCOVERY_SCRIPT =
   'tell application "System Events" to get name of every application process whose background only is false';
@@ -75,26 +82,15 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
           : undefined;
 
       let name = rawName;
-      const lowerRaw = rawName.toLowerCase();
 
-      if (bundleId === "com.googlecode.iterm2" && rawName === "iTerm2") {
-        name = "iTerm2";
-      } else if (
+      if (
         dispName &&
         dispName.length > 0 &&
-        dispName.toLowerCase() !== "electron"
+        dispName.toLowerCase() !== rawName.toLowerCase()
       ) {
         name = dispName;
-      } else if (
-        lowerRaw === "electron" ||
-        lowerRaw === "app" ||
-        lowerRaw === "main"
-      ) {
-        if (dispName && dispName.length > 0) {
-          name = dispName;
-        } else if (bundleId) {
-          name = formatDynamicName(bundleId);
-        }
+      } else if (!dispName && bundleId && rawName === bundleId) {
+        name = formatDynamicName(bundleId);
       }
 
       results.push({ name, bundleId, pid });
@@ -116,10 +112,22 @@ export function sortApps(apps: readonly AppInfo[]): AppInfo[] {
   );
 }
 
+export interface FilterOptions {
+  exclude?: readonly string[] | undefined;
+  includeFinder?: boolean | undefined;
+}
+
 export function filterApps(
   apps: readonly AppInfo[],
-  exclude: readonly string[] = [],
+  optionsOrExclude: FilterOptions | readonly string[] = {},
 ): AppInfo[] {
+  const opts: FilterOptions = Array.isArray(optionsOrExclude)
+    ? { exclude: optionsOrExclude as readonly string[] }
+    : (optionsOrExclude as FilterOptions);
+
+  const exclude = opts.exclude ?? [];
+  const includeFinder = opts.includeFinder ?? false;
+
   const seen = new Set<string>();
   const excludeSet = new Set(exclude.map((e) => e.toLowerCase().trim()));
   const filtered: AppInfo[] = [];
@@ -132,8 +140,10 @@ export function filterApps(
       continue;
     }
 
-    if (nameLower === "finder" || bundleLower === "com.apple.finder") {
-      continue;
+    if (!includeFinder) {
+      if (nameLower === "finder" || bundleLower === "com.apple.finder") {
+        continue;
+      }
     }
 
     if (
@@ -155,23 +165,47 @@ export function filterApps(
   return sortApps(filtered);
 }
 
+export interface GetRunningAppsOptions {
+  exclude?: readonly string[];
+  includeFinder?: boolean;
+  includeBackground?: boolean;
+}
+
 export async function getRunningApps(
-  optionsOrExecutor?: readonly string[] | ScriptExecutor,
+  optionsOrExclude?: GetRunningAppsOptions | readonly string[] | ScriptExecutor,
   executor?: ScriptExecutor,
 ): Promise<AppInfo[]> {
-  const exec =
-    typeof optionsOrExecutor === "function" ? optionsOrExecutor : executor;
-  const exclude = Array.isArray(optionsOrExecutor) ? optionsOrExecutor : [];
+  let exec: ScriptExecutor | undefined;
+  let filterOpts: FilterOptions = {};
+  let includeBackground = false;
 
+  if (typeof optionsOrExclude === "function") {
+    exec = optionsOrExclude;
+  } else if (Array.isArray(optionsOrExclude)) {
+    filterOpts = { exclude: optionsOrExclude };
+    exec = executor;
+  } else if (optionsOrExclude && typeof optionsOrExclude === "object") {
+    const opts = optionsOrExclude as GetRunningAppsOptions;
+    filterOpts = {
+      exclude: opts.exclude ?? [],
+      includeFinder: opts.includeFinder ?? false,
+    };
+    includeBackground = opts.includeBackground ?? false;
+    exec = executor;
+  } else {
+    exec = executor;
+  }
+
+  const script = buildDiscoveryScript(includeBackground);
   let stdout: string;
   try {
-    stdout = await runAppleScript(APP_DISCOVERY_SCRIPT, exec);
+    stdout = await runAppleScript(script, exec);
   } catch {
     stdout = await runAppleScript(FALLBACK_APP_DISCOVERY_SCRIPT, exec);
   }
 
   const apps = parseAppListOutput(stdout);
-  return filterApps(apps, exclude);
+  return filterApps(apps, filterOpts);
 }
 
 export function isProcessAlive(pid: number): boolean {

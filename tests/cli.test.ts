@@ -33,6 +33,28 @@ describe("cli parser and dispatcher", () => {
     expect(optsExcludeCmd.exclude).toEqual(["Warp", "Ghostty"]);
   });
 
+  it("parses --include-finder flag", () => {
+    const opts = parseCliArgs(["--include-finder", "--list"]);
+    expect(opts.includeFinder).toBe(true);
+    expect(opts.list).toBe(true);
+  });
+
+  it("parses -b and --background flags", () => {
+    const opts1 = parseCliArgs(["-b", "--list"]);
+    expect(opts1.includeBackground).toBe(true);
+
+    const opts2 = parseCliArgs(["--background", "--list"]);
+    expect(opts2.includeBackground).toBe(true);
+  });
+
+  it("parses --config flag and config subcommand", () => {
+    const opts1 = parseCliArgs(["--config"]);
+    expect(opts1.manageConfig).toBe(true);
+
+    const opts2 = parseCliArgs(["config"]);
+    expect(opts2.manageConfig).toBe(true);
+  });
+
   it("handles help and version flags", async () => {
     const helpSpy = vi.spyOn(output, "renderHelp").mockImplementation(() => {});
     const versionSpy = vi
@@ -90,6 +112,25 @@ describe("cli parser and dispatcher", () => {
     );
 
     excludeSpy.mockRestore();
+  });
+
+  it("dispatches to config command when config or --config passed", async () => {
+    const configModule = await import("../src/commands/config");
+    const configSpy = vi
+      .spyOn(configModule, "configCommand")
+      .mockResolvedValue(0);
+
+    const code1 = await main(["config"]);
+    expect(code1).toBe(0);
+    expect(configSpy).toHaveBeenCalled();
+
+    configSpy.mockClear();
+
+    const code2 = await main(["--config"]);
+    expect(code2).toBe(0);
+    expect(configSpy).toHaveBeenCalled();
+
+    configSpy.mockRestore();
   });
 
   it("dispatches to interactive command by default", async () => {

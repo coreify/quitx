@@ -8,6 +8,9 @@ export const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 
 export const DEFAULT_CONFIG: QuitxConfig = {
   exclude: [],
+  force: "normal",
+  includeFinder: false,
+  includeBackground: false,
 };
 
 export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
@@ -17,13 +20,26 @@ export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
     }
     const raw = readFileSync(filePath, "utf-8");
     const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed === "object" && parsed !== null && "exclude" in parsed) {
-      const exclude = Array.isArray((parsed as QuitxConfig).exclude)
-        ? (parsed as QuitxConfig).exclude
-        : [];
-      return { exclude };
+    if (typeof parsed !== "object" || parsed === null) {
+      return { ...DEFAULT_CONFIG, exclude: [] };
     }
-    return { ...DEFAULT_CONFIG, exclude: [] };
+
+    const obj = parsed as Record<string, unknown>;
+    return {
+      exclude: Array.isArray(obj.exclude) ? (obj.exclude as string[]) : [],
+      force:
+        obj.force === "force" || obj.force === "normal"
+          ? obj.force
+          : DEFAULT_CONFIG.force,
+      includeFinder:
+        typeof obj.includeFinder === "boolean"
+          ? obj.includeFinder
+          : DEFAULT_CONFIG.includeFinder,
+      includeBackground:
+        typeof obj.includeBackground === "boolean"
+          ? obj.includeBackground
+          : DEFAULT_CONFIG.includeBackground,
+    };
   } catch {
     return { ...DEFAULT_CONFIG, exclude: [] };
   }
