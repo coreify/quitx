@@ -1,7 +1,33 @@
+import { MultiSelectPrompt } from "@clack/core";
 import { confirm, isCancel, multiselect } from "@clack/prompts";
 import type { AppInfo } from "../types";
 
 export const SELECT_ALL_VALUE = "__QUIT_ALL_APPS__";
+
+export interface SelectorOption {
+  value: string;
+  label: string;
+  hint?: string;
+  disabled?: boolean;
+}
+
+export function syncQuitAllState(prompt: {
+  options: SelectorOption[];
+  value?: string[];
+}): void {
+  if (!prompt.options?.some((o) => o.value === SELECT_ALL_VALUE)) {
+    return;
+  }
+  const isQuitAllSelected = prompt.value?.includes(SELECT_ALL_VALUE) ?? false;
+  if (isQuitAllSelected) {
+    prompt.value = [SELECT_ALL_VALUE];
+  }
+  for (const opt of prompt.options) {
+    if (opt.value !== SELECT_ALL_VALUE) {
+      opt.disabled = isQuitAllSelected;
+    }
+  }
+}
 
 export async function selectApps(
   apps: readonly AppInfo[],
@@ -10,16 +36,17 @@ export async function selectApps(
     return [];
   }
 
-  const appOptions = apps.map((app) => {
+  const appOptions: SelectorOption[] = apps.map((app) => {
     const hint = app.bundleId ?? (app.pid ? `PID: ${app.pid}` : undefined);
     return {
       value: app.bundleId ?? `${app.name}-${app.pid ?? 0}`,
       label: app.name,
+      disabled: true,
       ...(hint ? { hint } : {}),
     };
   });
 
-  const options = [
+  const options: SelectorOption[] = [
     {
       value: SELECT_ALL_VALUE,
       label: "Quit all apps",
@@ -31,18 +58,62 @@ export async function selectApps(
   // Pre-select ONLY the "Quit all apps" option by default
   const initialValues = [SELECT_ALL_VALUE];
 
-  const selected = await multiselect({
-    message: "Select apps to quit",
-    options,
-    required: false,
-    initialValues,
-  });
+  const proto = MultiSelectPrompt?.prototype as unknown as
+    | {
+        toggleValue?: () => void;
+        toggleAll?: () => void;
+        toggleInvert?: () => void;
+      }
+    | undefined;
 
-  if (isCancel(selected)) {
+  const origToggleValue = proto?.toggleValue;
+  const origToggleAll = proto?.toggleAll;
+  const origToggleInvert = proto?.toggleInvert;
+
+  let selected: string[] | symbol;
+  try {
+    if (proto && origToggleValue) {
+      proto.toggleValue = function (this: unknown) {
+        origToggleValue.call(this);
+        syncQuitAllState(
+          this as { options: SelectorOption[]; value?: string[] },
+        );
+      };
+    }
+    if (proto && origToggleAll) {
+      proto.toggleAll = function (this: unknown) {
+        origToggleAll.call(this);
+        syncQuitAllState(
+          this as { options: SelectorOption[]; value?: string[] },
+        );
+      };
+    }
+    if (proto && origToggleInvert) {
+      proto.toggleInvert = function (this: unknown) {
+        origToggleInvert.call(this);
+        syncQuitAllState(
+          this as { options: SelectorOption[]; value?: string[] },
+        );
+      };
+    }
+
+    selected = await multiselect({
+      message: "Select apps to quit",
+      options,
+      required: false,
+      initialValues,
+    });
+  } finally {
+    if (proto && origToggleValue) proto.toggleValue = origToggleValue;
+    if (proto && origToggleAll) proto.toggleAll = origToggleAll;
+    if (proto && origToggleInvert) proto.toggleInvert = origToggleInvert;
+  }
+
+  if (isCancel(selected) || !Array.isArray(selected)) {
     return selected;
   }
 
-  const selectedArray = selected;
+  const selectedArray: string[] = selected;
   if (selectedArray.length === 0) {
     return [];
   }

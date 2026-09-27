@@ -20,6 +20,7 @@ import {
   SELECT_ALL_VALUE,
   selectApps,
   shouldConfirmQuit,
+  syncQuitAllState,
 } from "../src/ui/selector";
 
 describe("selector ui", () => {
@@ -32,7 +33,7 @@ describe("selector ui", () => {
     expect(mockMultiselect).not.toHaveBeenCalled();
   });
 
-  it("selectApps pre-selects only Quit all apps option by default", async () => {
+  it("selectApps pre-selects only Quit all apps option by default and disables rest", async () => {
     const apps: AppInfo[] = [
       { name: "Arc", bundleId: "com.arc" },
       { name: "Spotify", bundleId: "com.spotify" },
@@ -40,11 +41,28 @@ describe("selector ui", () => {
     mockMultiselect.mockResolvedValue([SELECT_ALL_VALUE]);
 
     await selectApps(apps);
-    expect(mockMultiselect).toHaveBeenCalledWith(
-      expect.objectContaining({
-        initialValues: [SELECT_ALL_VALUE],
-      }),
-    );
+    const lastCall = mockMultiselect.mock.calls[0];
+    const callArgs = (lastCall ? lastCall[0] : {}) as {
+      options: { value: string; disabled?: boolean }[];
+      initialValues: string[];
+    };
+    expect(callArgs.initialValues).toEqual([SELECT_ALL_VALUE]);
+    const optionValues = callArgs.options.map((o) => ({
+      value: o.value,
+      disabled: o.disabled,
+    }));
+    expect(optionValues).toContainEqual({
+      value: SELECT_ALL_VALUE,
+      disabled: undefined,
+    });
+    expect(optionValues).toContainEqual({
+      value: "com.arc",
+      disabled: true,
+    });
+    expect(optionValues).toContainEqual({
+      value: "com.spotify",
+      disabled: true,
+    });
   });
 
   it("selectApps returns selected apps from multiselect", async () => {
@@ -107,5 +125,49 @@ describe("selector ui", () => {
   it("shouldConfirmQuit skips when forceYes is true", async () => {
     expect(await shouldConfirmQuit(10, true, true)).toBe(true);
     expect(mockConfirm).not.toHaveBeenCalled();
+  });
+
+  it("syncQuitAllState disables other options when quit-all selected", () => {
+    const prompt = {
+      options: [
+        { value: SELECT_ALL_VALUE, label: "Quit all" },
+        { value: "app1", label: "App 1", disabled: false },
+        { value: "app2", label: "App 2", disabled: false },
+      ],
+      value: [SELECT_ALL_VALUE, "app1"],
+    };
+
+    syncQuitAllState(prompt);
+    expect(prompt.value).toEqual([SELECT_ALL_VALUE]);
+    expect(prompt.options[0]?.disabled).toBeUndefined();
+    expect(prompt.options[1]?.disabled).toBe(true);
+    expect(prompt.options[2]?.disabled).toBe(true);
+  });
+
+  it("syncQuitAllState enables other options when quit-all unselected", () => {
+    const prompt = {
+      options: [
+        { value: SELECT_ALL_VALUE, label: "Quit all" },
+        { value: "app1", label: "App 1", disabled: true },
+        { value: "app2", label: "App 2", disabled: true },
+      ],
+      value: ["app1"],
+    };
+
+    syncQuitAllState(prompt);
+    expect(prompt.value).toEqual(["app1"]);
+    expect(prompt.options[0]?.disabled).toBeUndefined();
+    expect(prompt.options[1]?.disabled).toBe(false);
+    expect(prompt.options[2]?.disabled).toBe(false);
+  });
+
+  it("syncQuitAllState ignores prompts without SELECT_ALL_VALUE", () => {
+    const prompt = {
+      options: [{ value: "app1", label: "App 1", disabled: false }],
+      value: ["app1"],
+    };
+
+    syncQuitAllState(prompt);
+    expect(prompt.options[0]?.disabled).toBe(false);
   });
 });
