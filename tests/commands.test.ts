@@ -158,6 +158,21 @@ describe("cli commands", () => {
     expect(mockOutro).toHaveBeenCalledWith("Done. Quit 1 of 1 apps.");
   });
 
+  it("interactiveCommand matches positional apps case-insensitively", async () => {
+    const mockApps: AppInfo[] = [
+      { name: "Arc", bundleId: "com.arc" },
+      { name: "Spotify", bundleId: "com.spotify" },
+    ];
+    vi.spyOn(appsModule, "getRunningApps").mockResolvedValue(mockApps);
+    vi.spyOn(quitModule, "quitApps").mockResolvedValue([
+      { app: mockApps[1]!, success: true, forced: false },
+    ]);
+
+    const code = await interactiveCommand({ apps: ["sPoTiFy"], yes: true });
+    expect(code).toBe(0);
+    expect(mockOutro).toHaveBeenCalledWith("Done. Quit 1 of 1 apps.");
+  });
+
   it("interactiveCommand handles no matching positional apps", async () => {
     const mockApps: AppInfo[] = [{ name: "Arc" }];
     vi.spyOn(appsModule, "getRunningApps").mockResolvedValue(mockApps);
