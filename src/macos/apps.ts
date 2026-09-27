@@ -18,7 +18,17 @@ function run() {
     const bundleId = app.bundleIdentifier ? app.bundleIdentifier.js : '';
     const pid = String(app.processIdentifier);
     const isBg = app.activationPolicy !== Regular ? '1' : '0';
-    lines.push(name + '\\t' + bundleId + '\\t' + pid + '\\t' + isBg);
+    let isMusic = '0';
+    if (app.bundleURL) {
+      const bundle = $.NSBundle.bundleWithURL(app.bundleURL);
+      if (bundle && bundle.infoDictionary) {
+        const cat = bundle.infoDictionary.objectForKey('LSApplicationCategoryType');
+        if (cat && cat.js === 'public.app-category.music') {
+          isMusic = '1';
+        }
+      }
+    }
+    lines.push(name + '\\t' + bundleId + '\\t' + pid + '\\t' + isBg + '\\t' + isMusic);
   }
   return lines.join('\\n');
 }`.trim();
@@ -83,6 +93,9 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
       const rawIsBg = parts[3]?.trim();
       const isBackground = rawIsBg === "1";
 
+      const rawIsMusic = parts[4]?.trim();
+      const isMusic = rawIsMusic === "1";
+
       let name = rawName;
       if (bundleId && rawName === bundleId) {
         name = formatDynamicName(bundleId);
@@ -93,6 +106,7 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
         bundleId,
         pid,
         ...(isBackground ? { isBackground: true } : {}),
+        ...(isMusic ? { isMusic: true } : {}),
       });
     }
 
@@ -148,7 +162,13 @@ export const KNOWN_MUSIC_APP_NAMES = new Set([
   "cider",
 ]);
 
-export function isMusicApp(app: AppInfo): boolean {
+export function isMusicApp(
+  app: AppInfo,
+  customMusicApps: readonly string[] = [],
+): boolean {
+  if (app.isMusic) {
+    return true;
+  }
   const nameLower = app.name.toLowerCase().trim();
   const bundleLower = app.bundleId?.toLowerCase().trim();
   if (bundleLower && KNOWN_MUSIC_BUNDLE_IDS.has(bundleLower)) {
@@ -156,6 +176,17 @@ export function isMusicApp(app: AppInfo): boolean {
   }
   if (KNOWN_MUSIC_APP_NAMES.has(nameLower)) {
     return true;
+  }
+  if (customMusicApps.length > 0) {
+    const customSet = new Set(
+      customMusicApps.map((a) => a.toLowerCase().trim()),
+    );
+    if (
+      customSet.has(nameLower) ||
+      (bundleLower && customSet.has(bundleLower))
+    ) {
+      return true;
+    }
   }
   return false;
 }
@@ -165,6 +196,7 @@ export interface FilterOptions {
   includeFinder?: boolean | undefined;
   groupBackground?: boolean | undefined;
   neverQuitMusic?: boolean | undefined;
+  musicApps?: readonly string[] | undefined;
 }
 
 export function filterApps(
@@ -179,6 +211,7 @@ export function filterApps(
   const includeFinder = opts.includeFinder ?? false;
   const groupBackground = opts.groupBackground ?? true;
   const neverQuitMusic = opts.neverQuitMusic ?? false;
+  const customMusicApps = opts.musicApps ?? [];
 
   const excludeSet = new Set(exclude.map((e) => e.toLowerCase().trim()));
   const eligible: AppInfo[] = [];
@@ -197,7 +230,7 @@ export function filterApps(
       }
     }
 
-    if (neverQuitMusic && isMusicApp(app)) {
+    if (neverQuitMusic && isMusicApp(app, customMusicApps)) {
       continue;
     }
 
@@ -263,6 +296,7 @@ export interface GetRunningAppsOptions {
   includeBackground?: boolean;
   groupBackground?: boolean;
   neverQuitMusic?: boolean;
+  musicApps?: readonly string[];
 }
 
 export async function getRunningApps(
@@ -286,6 +320,7 @@ export async function getRunningApps(
       includeFinder: opts.includeFinder ?? false,
       groupBackground: opts.groupBackground ?? true,
       neverQuitMusic: opts.neverQuitMusic ?? false,
+      musicApps: opts.musicApps ?? [],
     };
     includeBackground = opts.includeBackground ?? false;
     exec = executor;
@@ -296,6 +331,7 @@ export async function getRunningApps(
       includeFinder: config.includeFinder,
       groupBackground: config.groupBackground,
       neverQuitMusic: config.neverQuitMusic,
+      musicApps: config.musicApps,
     };
     includeBackground = config.includeBackground;
     exec = executor;
@@ -320,6 +356,7 @@ export async function getRunningAppsForConfig(
       includeBackground: options.includeBackground ?? config.includeBackground,
       groupBackground: options.groupBackground ?? config.groupBackground,
       neverQuitMusic: options.neverQuitMusic ?? config.neverQuitMusic,
+      musicApps: options.musicApps ?? config.musicApps,
     },
     executor,
   );

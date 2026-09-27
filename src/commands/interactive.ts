@@ -37,6 +37,7 @@ export async function interactiveCommand(
     includeBackground,
     groupBackground: config.groupBackground,
     neverQuitMusic,
+    musicApps: options.musicApps ?? config.musicApps,
   });
 
   if (!options.json) {

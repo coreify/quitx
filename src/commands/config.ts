@@ -1,9 +1,11 @@
 import { isCancel, log, multiselect, select } from "@clack/prompts";
 import {
   addExcludedApps,
+  addMusicApps,
   DEFAULT_CONFIG,
   loadConfig,
   removeExcludedApps,
+  removeMusicApps,
   saveConfig,
 } from "../config";
 import { getRunningApps } from "../macos/apps";
@@ -263,8 +265,104 @@ async function manageExcludedApps(): Promise<void> {
   }
 }
 
+async function manageCustomMusicApps(): Promise<void> {
+  const choice = await select({
+    message: "Manage custom music apps",
+    options: [
+      { value: "add", label: "Add running apps to custom music list" },
+      { value: "remove", label: "Remove apps from custom music list" },
+      { value: "view", label: "View current custom music list" },
+      backOption(),
+    ],
+  });
+
+  if (isCancel(choice) || choice === BACK_VALUE) return;
+
+  const config = loadConfig();
+
+  if (choice === "view") {
+    if (config.musicApps.length === 0) {
+      log.info("No custom music apps registered.");
+    } else {
+      log.info(
+        `Custom music apps:\n${config.musicApps.map((e) => `  - ${e}`).join("\n")}`,
+      );
+    }
+    return;
+  }
+
+  if (choice === "add") {
+    const available = await getRunningApps({
+      exclude: config.exclude,
+      includeFinder: config.includeFinder,
+      includeBackground: config.includeBackground,
+      groupBackground: config.groupBackground,
+      neverQuitMusic: false,
+    });
+
+    const unadded = available.filter(
+      (a) =>
+        !config.musicApps.some(
+          (m) =>
+            m.toLowerCase() === a.name.toLowerCase() ||
+            (a.bundleId && m.toLowerCase() === a.bundleId.toLowerCase()),
+        ),
+    );
+
+    if (unadded.length === 0) {
+      log.info("All running apps are already in custom music list.");
+      return;
+    }
+
+    const selected = await multiselect({
+      message: "Select apps to mark as music players",
+      options: unadded.map((a) => ({
+        value: a.name,
+        label: a.name,
+        ...(a.bundleId ? { hint: a.bundleId } : {}),
+      })),
+      required: false,
+    });
+
+    if (isCancel(selected)) return;
+    if (!Array.isArray(selected) || selected.length === 0) {
+      log.info("No apps selected.");
+      return;
+    }
+
+    addMusicApps(selected);
+    log.success(`Added ${selected.length} apps to custom music list.`);
+    return;
+  }
+
+  if (choice === "remove") {
+    if (config.musicApps.length === 0) {
+      log.info("No apps currently in custom music list.");
+      return;
+    }
+
+    const selected = await multiselect({
+      message: "Select apps to remove from custom music list",
+      options: config.musicApps.map((name) => ({
+        value: name,
+        label: name,
+      })),
+      required: false,
+    });
+
+    if (isCancel(selected)) return;
+    if (!Array.isArray(selected) || selected.length === 0) {
+      log.info("No apps selected.");
+      return;
+    }
+
+    removeMusicApps(selected);
+    log.success(`Removed ${selected.length} apps from custom music list.`);
+  }
+}
+
 function resetConfig(): void {
-  saveConfig({ ...DEFAULT_CONFIG, exclude: [] });
+  saveConfig({ ...DEFAULT_CONFIG, exclude: [], musicApps: [] });
   log.success("Config reset to defaults.");
 }
 
@@ -313,6 +411,11 @@ export async function configCommand(): Promise<number> {
           hint: `${config.exclude.length} excluded`,
         },
         {
+          value: "custom-music",
+          label: "Manage Custom Music Apps",
+          hint: `${config.musicApps.length} custom apps`,
+        },
+        {
           value: "reset",
           label: "Reset to Defaults",
           hint: "restore all settings",
@@ -333,6 +436,7 @@ export async function configCommand(): Promise<number> {
     if (choice === "finder") await toggleIncludeFinder();
     if (choice === "background") await toggleIncludeBackground();
     if (choice === "exclude") await manageExcludedApps();
+    if (choice === "custom-music") await manageCustomMusicApps();
     if (choice === "reset") resetConfig();
   }
 

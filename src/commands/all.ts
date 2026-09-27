@@ -30,6 +30,7 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
     includeBackground,
     groupBackground: config.groupBackground,
     neverQuitMusic,
+    musicApps: options.musicApps ?? config.musicApps,
   });
 
   if (apps.length === 0) {

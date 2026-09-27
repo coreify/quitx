@@ -44,6 +44,7 @@ const fullConfig = (overrides: Partial<QuitxConfig> = {}): QuitxConfig => ({
   groupBackground: true,
   defaultSelectAll: true,
   neverQuitMusic: false,
+  musicApps: [],
   ...overrides,
 });
 
@@ -278,6 +279,44 @@ describe("config command", () => {
     );
     expect(mockLogSuccess).toHaveBeenCalledWith(
       "Never quit music apps: enabled",
+    );
+  });
+
+  it("manages custom music apps - view empty list", async () => {
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(fullConfig());
+
+    mockSelect
+      .mockResolvedValueOnce("custom-music")
+      .mockResolvedValueOnce("view")
+      .mockResolvedValueOnce("exit");
+
+    const code = await configCommand();
+    expect(code).toBe(0);
+    expect(mockLogInfo).toHaveBeenCalledWith(
+      "No custom music apps registered.",
+    );
+  });
+
+  it("manages custom music apps - add app", async () => {
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(fullConfig());
+    vi.spyOn(appsModule, "getRunningApps").mockResolvedValueOnce([
+      { name: "MyPlayer", bundleId: "com.custom.player" },
+    ]);
+    mockMultiselect.mockResolvedValueOnce(["MyPlayer"]);
+    const addSpy = vi
+      .spyOn(configModule, "addMusicApps")
+      .mockReturnValue(fullConfig({ musicApps: ["MyPlayer"] }));
+
+    mockSelect
+      .mockResolvedValueOnce("custom-music")
+      .mockResolvedValueOnce("add")
+      .mockResolvedValueOnce("exit");
+
+    const code = await configCommand();
+    expect(code).toBe(0);
+    expect(addSpy).toHaveBeenCalledWith(["MyPlayer"]);
+    expect(mockLogSuccess).toHaveBeenCalledWith(
+      "Added 1 apps to custom music list.",
     );
   });
 

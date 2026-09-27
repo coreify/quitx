@@ -16,6 +16,7 @@ export async function listCommand(options: CliOptions = {}): Promise<number> {
     includeBackground,
     groupBackground: config.groupBackground,
     neverQuitMusic,
+    musicApps: options.musicApps ?? config.musicApps,
   });
 
   renderList(apps, options.json);

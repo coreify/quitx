@@ -5,6 +5,7 @@ export interface AppInfo {
   pids?: number[] | undefined;
   count?: number | undefined;
   isBackground?: boolean | undefined;
+  isMusic?: boolean | undefined;
 }
 
 export interface QuitResult {
@@ -22,6 +23,7 @@ export interface QuitxConfig {
   groupBackground: boolean;
   defaultSelectAll: boolean;
   neverQuitMusic: boolean;
+  musicApps: string[];
 }
 
 export interface CliOptions {
@@ -39,6 +41,7 @@ export interface CliOptions {
   includeFinder?: boolean | undefined;
   includeBackground?: boolean | undefined;
   neverQuitMusic?: boolean | undefined;
+  musicApps?: string[] | undefined;
   apps?: string[] | undefined;
 }
 

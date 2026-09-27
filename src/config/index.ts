@@ -14,17 +14,18 @@ export const DEFAULT_CONFIG: QuitxConfig = {
   groupBackground: true,
   defaultSelectAll: true,
   neverQuitMusic: false,
+  musicApps: [],
 };
 
 export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
   try {
     if (!existsSync(filePath)) {
-      return { ...DEFAULT_CONFIG, exclude: [] };
+      return { ...DEFAULT_CONFIG, exclude: [], musicApps: [] };
     }
     const raw = readFileSync(filePath, "utf-8");
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== "object" || parsed === null) {
-      return { ...DEFAULT_CONFIG, exclude: [] };
+      return { ...DEFAULT_CONFIG, exclude: [], musicApps: [] };
     }
 
     const obj = parsed as Record<string, unknown>;
@@ -68,9 +69,12 @@ export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
       groupBackground: groupBgVal,
       defaultSelectAll: defaultSelectVal,
       neverQuitMusic: neverQuitMusicVal,
+      musicApps: Array.isArray(obj.musicApps)
+        ? (obj.musicApps as string[])
+        : DEFAULT_CONFIG.musicApps,
     };
   } catch {
-    return { ...DEFAULT_CONFIG, exclude: [] };
+    return { ...DEFAULT_CONFIG, exclude: [], musicApps: [] };
   }
 }
 
@@ -118,6 +122,42 @@ export function removeExcludedApps(
   );
 
   const next = { ...current, exclude: updated };
+  saveConfig(next, filePath);
+  return next;
+}
+
+export function addMusicApps(
+  apps: readonly string[],
+  filePath = CONFIG_FILE,
+): QuitxConfig {
+  const current = loadConfig(filePath);
+  const set = new Set(current.musicApps.map((a) => a.toLowerCase().trim()));
+  const updated = [...current.musicApps];
+
+  for (const app of apps) {
+    const trimmed = app.trim();
+    if (trimmed && !set.has(trimmed.toLowerCase())) {
+      set.add(trimmed.toLowerCase());
+      updated.push(trimmed);
+    }
+  }
+
+  const next = { ...current, musicApps: updated };
+  saveConfig(next, filePath);
+  return next;
+}
+
+export function removeMusicApps(
+  apps: readonly string[],
+  filePath = CONFIG_FILE,
+): QuitxConfig {
+  const current = loadConfig(filePath);
+  const toRemove = new Set(apps.map((a) => a.toLowerCase().trim()));
+  const updated = current.musicApps.filter(
+    (app) => !toRemove.has(app.toLowerCase().trim()),
+  );
+
+  const next = { ...current, musicApps: updated };
   saveConfig(next, filePath);
   return next;
 }

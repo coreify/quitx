@@ -329,4 +329,43 @@ describe("apps parser and filters", () => {
       "TIDAL",
     ]);
   });
+
+  it("filters out apps flagged by OS metadata isMusic or customMusicApps list", () => {
+    const raw: AppInfo[] = [
+      { name: "CustomSynth", bundleId: "com.vendor.synth", isMusic: true },
+      { name: "MyPlayer", bundleId: "com.indie.player" },
+      { name: "CodeEditor", bundleId: "com.microsoft.vscode" },
+    ];
+
+    const result = filterApps(raw, {
+      neverQuitMusic: true,
+      musicApps: ["MyPlayer"],
+    });
+
+    expect(result).toEqual([
+      { name: "CodeEditor", bundleId: "com.microsoft.vscode" },
+    ]);
+  });
+
+  it("parses 5th column isMusic flag in discovery output", () => {
+    const stdout = [
+      "MusicPlayer\tcom.music.player\t123\t0\t1",
+      "Browser\tcom.browser.app\t456\t0\t0",
+    ].join("\n");
+
+    const apps = parseAppListOutput(stdout);
+    expect(apps).toEqual([
+      {
+        name: "MusicPlayer",
+        bundleId: "com.music.player",
+        pid: 123,
+        isMusic: true,
+      },
+      {
+        name: "Browser",
+        bundleId: "com.browser.app",
+        pid: 456,
+      },
+    ]);
+  });
 });

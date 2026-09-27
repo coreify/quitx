@@ -3,8 +3,10 @@ import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import {
   addExcludedApps,
+  addMusicApps,
   loadConfig,
   removeExcludedApps,
+  removeMusicApps,
   saveConfig,
 } from "../src/config";
 
@@ -43,6 +45,7 @@ describe("config storage", () => {
       groupBackground: true,
       defaultSelectAll: true,
       neverQuitMusic: false,
+      musicApps: [],
     });
   });
 
@@ -56,6 +59,7 @@ describe("config storage", () => {
         groupBackground: true,
         defaultSelectAll: true,
         neverQuitMusic: false,
+        musicApps: ["MyCustomPlayer"],
       },
       TEST_FILE,
     );
@@ -64,6 +68,7 @@ describe("config storage", () => {
     expect(loaded.groupBackground).toBe(true);
     expect(loaded.defaultSelectAll).toBe(true);
     expect(loaded.neverQuitMusic).toBe(false);
+    expect(loaded.musicApps).toEqual(["MyCustomPlayer"]);
   });
 
   it("adds excluded apps without duplicates", () => {
@@ -80,5 +85,17 @@ describe("config storage", () => {
 
     const loaded = loadConfig(TEST_FILE);
     expect(loaded.exclude).toEqual(["Discord"]);
+  });
+
+  it("adds and removes custom music apps without duplicates case-insensitively", () => {
+    addMusicApps(["VLC", "Foobar"], TEST_FILE);
+    addMusicApps(["vlc", "Audacity"], TEST_FILE);
+
+    let loaded = loadConfig(TEST_FILE);
+    expect(loaded.musicApps).toEqual(["VLC", "Foobar", "Audacity"]);
+
+    removeMusicApps(["foobar", "VLC"], TEST_FILE);
+    loaded = loadConfig(TEST_FILE);
+    expect(loaded.musicApps).toEqual(["Audacity"]);
   });
 });
