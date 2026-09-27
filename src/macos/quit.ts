@@ -75,7 +75,6 @@ export async function quitApp(
     };
   }
 
-  // Wait for application to process quit event
   await sleep(timeoutMs);
 
   const stillRunning = await isAppRunning(app, executor);
@@ -83,7 +82,6 @@ export async function quitApp(
     return { app, success: true, forced: false };
   }
 
-  // If still running and force is requested
   if (options.force) {
     const killed = forceQuitApp(app);
     if (killed) {
@@ -118,16 +116,12 @@ export async function quitApps(
     return [];
   }
 
-  // Parallel quit flow as described in PLAN.md Section 35
   const timeoutMs = options.timeoutMs ?? 700;
 
-  // 1. Send quit requests to all apps in parallel
   await Promise.allSettled(apps.map((app) => sendQuitSignal(app, executor)));
 
-  // 2. Wait briefly
   await sleep(timeoutMs);
 
-  // 3. Verify exit status and handle force quit if needed
   const results: QuitResult[] = [];
   for (const app of apps) {
     const stillRunning = await isAppRunning(app, executor);

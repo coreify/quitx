@@ -15,22 +15,16 @@ export function handleQuitAllToggle(
   selectedValues: readonly string[],
 ): string[] {
   if (currentValue === SELECT_ALL_VALUE) {
-    // Toggling Quit all apps
     if (selectedValues.includes(SELECT_ALL_VALUE)) {
-      // Unselect quit-all -> enables picking individual apps
       return [];
     }
-    // Select quit-all -> clears individual apps and locks to quit-all
     return [SELECT_ALL_VALUE];
   }
 
-  // Toggling an individual app
   if (selectedValues.includes(SELECT_ALL_VALUE)) {
-    // Disabled while Quit all is selected: ignore toggle, user must unselect quit-all first
     return [...selectedValues];
   }
 
-  // Normal toggle of individual app
   const isSelected = selectedValues.includes(currentValue);
   return isSelected
     ? selectedValues.filter((v) => v !== currentValue)
@@ -130,7 +124,6 @@ export async function selectApps(
     ...appOptions,
   ];
 
-  // Pre-select ONLY the "Quit all apps" option by default
   const initialValues = [SELECT_ALL_VALUE];
 
   const proto = MultiSelectPrompt?.prototype as unknown as
@@ -195,7 +188,6 @@ export async function selectApps(
     return [];
   }
 
-  // If "Quit all apps" option was selected
   if (selectedArray.includes(SELECT_ALL_VALUE)) {
     return [...apps];
   }
@@ -216,7 +208,6 @@ export async function shouldConfirmQuit(
     return true;
   }
 
-  // PLAN.md Section 18: 1-3 apps: no confirmation needed (unless --all)
   if (!isAll && count < 4) {
     return true;
   }

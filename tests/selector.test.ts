@@ -163,35 +163,28 @@ describe("selector ui", () => {
 
     attachQuitAllBehavior(prompt);
 
-    // Initial state: cursor locked at 0
     expect(prompt.cursor).toBe(0);
-    prompt.cursor = 1; // Simulate down arrow
+    prompt.cursor = 1;
     expect(prompt.cursor).toBe(0);
 
-    // Unselect quit-all via toggleValue
     prompt.toggleValue!();
     expect(prompt.value).toEqual([]);
 
-    // Arrows now work as normal
     prompt.cursor = 1;
     expect(prompt.cursor).toBe(1);
 
-    // Toggle app1
     prompt.toggleValue!();
     expect(prompt.value).toEqual(["app1"]);
 
-    // Move to app2 and toggle
     prompt.cursor = 2;
     prompt.toggleValue!();
     expect(prompt.value).toEqual(["app1", "app2"]);
 
-    // Move back to quit-all and select it again
     prompt.cursor = 0;
     prompt.toggleValue!();
     expect(prompt.value).toEqual([SELECT_ALL_VALUE]);
     expect(prompt.cursor).toBe(0);
 
-    // Arrow navigation locked again
     prompt.cursor = 2;
     expect(prompt.cursor).toBe(0);
   });
@@ -270,12 +263,10 @@ describe("selector ui", () => {
 
     attachQuitAllBehavior(prompt);
 
-    // If an external assignment tries to include both quit-all and individual apps:
     prompt.value = [SELECT_ALL_VALUE, "app1", "app2"];
     expect(prompt.value).toEqual([SELECT_ALL_VALUE]);
     expect(prompt.cursor).toBe(0);
 
-    // Setting individual apps only
     prompt.value = ["app1", "app2"];
     expect(prompt.value).toEqual(["app1", "app2"]);
   });

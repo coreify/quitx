@@ -139,26 +139,22 @@ export function filterApps(
     const nameLower = app.name.toLowerCase().trim();
     const bundleLower = app.bundleId?.toLowerCase().trim();
 
-    // 1. Exclude quitx itself
     if (nameLower === "quitx" || bundleLower === "com.kiron.quitx") {
       continue;
     }
 
-    // 2. Exclude Finder unless explicitly included
     if (!options.includeFinder) {
       if (nameLower === "finder" || bundleLower === "com.apple.finder") {
         continue;
       }
     }
 
-    // 3. Exclude terminal applications unless explicitly included
     if (!options.includeTerminal) {
       if (isTerminalApp(app, currentTerminal)) {
         continue;
       }
     }
 
-    // 4. Exclude user-specified apps
     if (
       userExcludes.has(nameLower) ||
       (bundleLower && userExcludes.has(bundleLower))
@@ -166,7 +162,6 @@ export function filterApps(
       continue;
     }
 
-    // Deduplicate by name and bundleId
     const key = bundleLower ?? nameLower;
     if (seen.has(key)) {
       continue;

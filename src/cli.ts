@@ -46,7 +46,6 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
         options.exclude?.push(val);
       }
     } else if (arg.startsWith("-")) {
-      // Ignore or handle unknown flags gracefully
       continue;
     } else {
       options.apps?.push(arg);
@@ -57,7 +56,6 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
 }
 
 export async function main(argv = process.argv.slice(2)): Promise<number> {
-  // 1. Validate platform runtime first
   if (!isMacOS()) {
     console.error("✖ quitx only works on macOS.");
     return 1;
@@ -105,7 +103,6 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
   }
 }
 
-// Auto-run if executed directly as CLI
 if (
   process.argv[1] &&
   (process.argv[1].endsWith("/cli.ts") ||

@@ -178,9 +178,7 @@ describe("apps parser and filters", () => {
   });
 
   it("isProcessAlive checks process via kill signal 0", () => {
-    // Current node process is definitely alive
     expect(isProcessAlive(process.pid)).toBe(true);
-    // Non-existent PID
     expect(isProcessAlive(9999999)).toBe(false);
   });
 

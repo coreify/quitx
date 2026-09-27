@@ -71,7 +71,6 @@ export function getCurrentTerminalApp(
     return null;
   }
 
-  // Check warp explicitly to prevent 'terminal' in 'warpterminal' matching Apple Terminal
   if (target.includes("warp")) {
     return "Warp";
   }
@@ -87,7 +86,6 @@ export function getCurrentTerminalApp(
     }
   }
 
-  // If unknown terminal program, return raw name if not empty
   return env["TERM_PROGRAM"] || null;
 }
 
@@ -98,7 +96,6 @@ export function isTerminalApp(
   const appNameLower = app.name.toLowerCase();
   const appBundleLower = app.bundleId?.toLowerCase();
 
-  // If current terminal specified, check exact match
   if (currentTerminal) {
     const curLower = currentTerminal.toLowerCase();
     if (appNameLower === curLower) {
@@ -106,7 +103,6 @@ export function isTerminalApp(
     }
   }
 
-  // Check known terminals
   for (const term of KNOWN_TERMINALS) {
     if (
       currentTerminal &&
@@ -120,7 +116,6 @@ export function isTerminalApp(
       }
     }
 
-    // Default terminal emulators to avoid killing terminal sessions
     if (term.name !== "Visual Studio Code" && term.name !== "Cursor") {
       if (
         appNameLower === term.name.toLowerCase() ||

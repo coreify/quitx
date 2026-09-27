@@ -47,7 +47,6 @@ export async function interactiveCommand(
 
   let targetApps: AppInfo[];
 
-  // If specific apps were passed via arguments, e.g. `quitx Spotify Discord`
   if (options.apps && options.apps.length > 0) {
     const targets = new Set(options.apps.map((a) => a.toLowerCase().trim()));
     targetApps = apps.filter(
@@ -73,7 +72,6 @@ export async function interactiveCommand(
       return 0;
     }
   } else {
-    // Interactive selector
     const selected = await selectApps(apps);
     if (typeof selected === "symbol" || isCancel(selected)) {
       showCancel("Cancelled.");
@@ -90,7 +88,6 @@ export async function interactiveCommand(
     targetApps = selected;
   }
 
-  // Confirmation step (PLAN.md Section 18: 1-3 apps skip confirm, 4+ apps confirm)
   if (!options.yes) {
     const confirmation = await shouldConfirmQuit(
       targetApps.length,
