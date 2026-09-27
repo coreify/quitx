@@ -80,7 +80,8 @@ export function renderVersion(version: string): void {
   console.log(`quitx v${version}`);
 }
 
-export const THANKS_MESSAGE = "\nThanks for using quitx..!";
+export const THANKS_MESSAGE =
+  "\nThanks for using quitx..!\nFor more visit - quitx.js.org";
 
 export function printThanks(options?: {
   json?: boolean | undefined;

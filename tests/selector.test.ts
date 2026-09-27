@@ -96,7 +96,9 @@ describe("selector ui", () => {
       options: { value: string; label: string; hint?: string }[];
     };
     expect(callArgs.options[0]?.hint).toBe("com.helper (3 instances)");
+    expect(callArgs.options[0]?.label).toBe("Helper (3)");
     expect(callArgs.options[1]?.hint).toBe("PID: 99");
+    expect(callArgs.options[1]?.label).toBe("Daemon");
   });
 
   it("selectApps returns selected apps from multiselect", async () => {

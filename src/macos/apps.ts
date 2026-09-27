@@ -170,7 +170,17 @@ export function filterApps(
     if (isBg && !groupBackground) {
       result.push({ ...app });
     } else {
-      const key = bundleLower ?? nameLower;
+      let key = bundleLower ?? nameLower;
+      let cleanName = app.name;
+
+      if (isBg) {
+        const base = app.name.replace(/\s*\([^)]*\)$/, "").trim();
+        if (base) {
+          key = base.toLowerCase();
+          cleanName = base;
+        }
+      }
+
       const existing = grouped.get(key);
       if (existing) {
         if (app.pid) {
@@ -185,7 +195,7 @@ export function filterApps(
           existing.count = (existing.count ?? 1) + 1;
         }
       } else {
-        const item: AppInfo = { ...app };
+        const item: AppInfo = { ...app, name: cleanName };
         grouped.set(key, item);
         result.push(item);
       }

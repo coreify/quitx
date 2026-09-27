@@ -265,6 +265,35 @@ describe("apps parser and filters", () => {
     expect(result[1]?.pid).toBe(102);
   });
 
+  it("groups background apps with sub-instance suffixes under base name", () => {
+    const raw: AppInfo[] = [
+      {
+        name: "Dock Extra",
+        bundleId: "com.apple.dock.extra",
+        pid: 36960,
+        isBackground: true,
+      },
+      {
+        name: "Dock Extra (Codex.app)",
+        bundleId: "com.apple.dock.external.extra.arm64",
+        pid: 36962,
+        isBackground: true,
+      },
+      {
+        name: "Dock Extra (Setapp.app)",
+        bundleId: "com.apple.dock.external.extra.arm64",
+        pid: 36961,
+        isBackground: true,
+      },
+    ];
+
+    const result = filterApps(raw, { groupBackground: true });
+    expect(result).toHaveLength(1);
+    expect(result[0]?.name).toBe("Dock Extra");
+    expect(result[0]?.count).toBe(3);
+    expect(result[0]?.pids).toEqual([36960, 36962, 36961]);
+  });
+
   it("isAppRunning checks any alive PID when target has pids array", async () => {
     const appWithMultiPids: AppInfo = {
       name: "MultiProc",

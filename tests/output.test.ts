@@ -30,7 +30,9 @@ describe("output utilities", () => {
   });
 
   it("contains THANKS_MESSAGE and printThanks logs it", () => {
-    expect(THANKS_MESSAGE).toContain("Thanks for using quitx..!");
+    expect(THANKS_MESSAGE).toContain(
+      "Thanks for using quitx..!\nFor more visit - quitx.js.org",
+    );
 
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     printThanks();

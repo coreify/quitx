@@ -140,9 +140,12 @@ export async function selectApps(
         ? `${base}:${app.pid}`
         : (app.bundleId ?? `${app.name}-${app.pid ?? index}`);
 
+    const label =
+      app.count && app.count > 1 ? `${app.name} (${app.count})` : app.name;
+
     return {
       value,
-      label: app.name,
+      label,
       ...(hint ? { hint } : {}),
     };
   });
