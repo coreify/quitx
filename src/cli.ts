@@ -2,7 +2,7 @@ import { allCommand } from "./commands/all";
 import { interactiveCommand } from "./commands/interactive";
 import { listCommand } from "./commands/list";
 import type { CliOptions } from "./types";
-import { renderHelp, renderVersion } from "./ui/output";
+import { printThanks, renderHelp, renderVersion } from "./ui/output";
 import { ensureMacOS, isMacOS } from "./utils/platform";
 
 export const VERSION = "0.1.0";
@@ -66,19 +66,30 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
 
   const options = parseCliArgs(argv);
 
+  if (process.stdin.isTTY) {
+    process.once("SIGINT", () => {
+      printThanks(options);
+      process.exit(130);
+    });
+  }
+
   if (options.help) {
     renderHelp();
+    printThanks(options);
     return 0;
   }
 
   if (options.version) {
     renderVersion(VERSION);
+    printThanks(options);
     return 0;
   }
 
   try {
     if (options.list) {
-      return await listCommand(options);
+      const code = await listCommand(options);
+      printThanks(options);
+      return code;
     }
 
     if (options.all) {
@@ -89,6 +100,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error(`✖ Error: ${msg}`);
+    printThanks(options);
     return 1;
   }
 }

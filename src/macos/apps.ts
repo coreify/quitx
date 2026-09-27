@@ -4,20 +4,43 @@ import { getCurrentTerminalApp, isTerminalApp } from "./terminal";
 
 export const APP_DISCOVERY_SCRIPT = `
 tell application "System Events"
-\tset appNames to name of every application process whose background only is false
-\tset appBundles to bundle identifier of every application process whose background only is false
-\tset appPids to unix id of every application process whose background only is false
+\tset procs to every application process whose background only is false
+\tset outList to {}
+\trepeat with p in procs
+\t\tset pName to name of p
+\t\tset pBundle to ""
+\t\ttry
+\t\t\tset pBundle to bundle identifier of p
+\t\tend try
+\t\tset pPid to ""
+\t\ttry
+\t\t\tset pPid to unix id of p
+\t\tend try
+\t\tset pDisp to ""
+\t\ttry
+\t\t\tset pDisp to displayed name of (file of p as alias)
+\t\tend try
+\t\tset end of outList to pName & tab & pBundle & tab & pPid & tab & pDisp
+\tend repeat
+\tset AppleScript's text item delimiters to linefeed
+\toutList as text
 end tell
-set outList to {}
-repeat with i from 1 to count of appNames
-\tset end of outList to (item i of appNames) & tab & (item i of appBundles) & tab & (item i of appPids)
-end repeat
-set AppleScript's text item delimiters to linefeed
-outList as text
 `.trim();
 
 export const FALLBACK_APP_DISCOVERY_SCRIPT =
   'tell application "System Events" to get name of every application process whose background only is false';
+
+export function formatDynamicName(identifier: string): string {
+  const parts = identifier.split(".").filter(Boolean);
+  const last = parts[parts.length - 1];
+  if (!last || last.length <= 1) {
+    return identifier;
+  }
+  const spaced = last.replace(/[-_]/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2");
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+export const resolveNameFromBundleId = formatDynamicName;
 
 export function parseAppListOutput(stdout: string): AppInfo[] {
   const trimmed = stdout.trim();
@@ -25,7 +48,6 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
     return [];
   }
 
-  // Check if output is tab-delimited multi-line format
   if (trimmed.includes("\t") || trimmed.includes("\n")) {
     const lines = trimmed
       .split("\n")
@@ -35,12 +57,14 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
 
     for (const line of lines) {
       const parts = line.split("\t");
-      const name = parts[0]?.trim();
-      if (!name) continue;
+      const rawName = parts[0]?.trim();
+      if (!rawName) continue;
 
       const rawBundle = parts[1]?.trim();
       const bundleId =
-        rawBundle && rawBundle !== "missing value" ? rawBundle : undefined;
+        rawBundle && rawBundle !== "missing value" && rawBundle.length > 0
+          ? rawBundle
+          : undefined;
 
       const rawPid = parts[2]?.trim();
       const pidNum = rawPid ? parseInt(rawPid, 10) : undefined;
@@ -49,13 +73,39 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
           ? pidNum
           : undefined;
 
+      const rawDisp = parts[3]?.trim();
+      const dispName =
+        rawDisp && rawDisp !== "missing value" && rawDisp.length > 0
+          ? rawDisp.replace(/\.app$/i, "").trim()
+          : undefined;
+
+      let name = rawName;
+      const lowerRaw = rawName.toLowerCase();
+
+      if (
+        dispName &&
+        dispName.length > 0 &&
+        dispName.toLowerCase() !== "electron"
+      ) {
+        name = dispName;
+      } else if (
+        lowerRaw === "electron" ||
+        lowerRaw === "app" ||
+        lowerRaw === "main"
+      ) {
+        if (dispName && dispName.length > 0) {
+          name = dispName;
+        } else if (bundleId) {
+          name = formatDynamicName(bundleId);
+        }
+      }
+
       results.push({ name, bundleId, pid });
     }
 
     return results;
   }
 
-  // Fallback comma-separated format
   return trimmed
     .split(",")
     .map((name) => name.trim())

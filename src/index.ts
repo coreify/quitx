@@ -3,6 +3,8 @@ export * from "./macos/apps";
 export * from "./macos/applescript";
 export * from "./macos/quit";
 export * from "./macos/terminal";
+export * from "./ui/output";
+export * from "./ui/selector";
 export * from "./utils/platform";
 export * from "./utils/sleep";
 export { allCommand } from "./commands/all";

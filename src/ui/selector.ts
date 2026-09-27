@@ -10,26 +10,32 @@ export async function selectApps(
     return [];
   }
 
+  const appOptions = apps.map((app) => {
+    const hint = app.bundleId ?? (app.pid ? `PID: ${app.pid}` : undefined);
+    return {
+      value: app.bundleId ?? `${app.name}-${app.pid ?? 0}`,
+      label: app.name,
+      ...(hint ? { hint } : {}),
+    };
+  });
+
   const options = [
     {
       value: SELECT_ALL_VALUE,
       label: "Quit all apps",
       hint: `${apps.length} eligible apps`,
     },
-    ...apps.map((app) => {
-      const hint = app.bundleId ?? (app.pid ? `PID: ${app.pid}` : undefined);
-      return {
-        value: app.bundleId ?? `${app.name}-${app.pid ?? 0}`,
-        label: app.name,
-        ...(hint ? { hint } : {}),
-      };
-    }),
+    ...appOptions,
   ];
+
+  // Pre-select ONLY the "Quit all apps" option by default
+  const initialValues = [SELECT_ALL_VALUE];
 
   const selected = await multiselect({
     message: "Select apps to quit",
     options,
     required: false,
+    initialValues,
   });
 
   if (isCancel(selected)) {
@@ -41,7 +47,7 @@ export async function selectApps(
     return [];
   }
 
-  // If "Quit all apps" was chosen, select all apps
+  // If "Quit all apps" option was selected
   if (selectedArray.includes(SELECT_ALL_VALUE)) {
     return [...apps];
   }

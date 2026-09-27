@@ -2,7 +2,13 @@ import { isCancel, log, spinner } from "@clack/prompts";
 import { getRunningApps } from "../macos/apps";
 import { quitApps } from "../macos/quit";
 import type { AppInfo, CliOptions } from "../types";
-import { renderResults, showCancel, showIntro, showOutro } from "../ui/output";
+import {
+  printThanks,
+  renderResults,
+  showCancel,
+  showIntro,
+  showOutro,
+} from "../ui/output";
 import { selectApps, shouldConfirmQuit } from "../ui/selector";
 
 export async function interactiveCommand(
@@ -34,6 +40,7 @@ export async function interactiveCommand(
       console.log(JSON.stringify({ quit: 0, results: [] }, null, 2));
     } else {
       showOutro("No running GUI applications found to quit.");
+      printThanks(options);
     }
     return 0;
   }
@@ -61,6 +68,7 @@ export async function interactiveCommand(
       } else {
         log.warn("None of the specified applications are currently running.");
         showOutro("Nothing to quit.");
+        printThanks(options);
       }
       return 0;
     }
@@ -69,11 +77,13 @@ export async function interactiveCommand(
     const selected = await selectApps(apps);
     if (typeof selected === "symbol" || isCancel(selected)) {
       showCancel("Cancelled.");
+      printThanks(options);
       return 0;
     }
 
     if (selected.length === 0) {
       showOutro("No apps selected.");
+      printThanks(options);
       return 0;
     }
 
@@ -89,6 +99,7 @@ export async function interactiveCommand(
     );
     if (isCancel(confirmation) || confirmation !== true) {
       showCancel("Cancelled.");
+      printThanks(options);
       return 0;
     }
   }
@@ -106,6 +117,7 @@ export async function interactiveCommand(
     renderResults(results);
     const successCount = results.filter((r) => r.success).length;
     showOutro(`Done. Quit ${successCount} of ${targetApps.length} apps.`);
+    printThanks(options);
   } else {
     console.log(
       JSON.stringify(

@@ -70,3 +70,14 @@ EXAMPLES:
 export function renderVersion(version = "0.1.0"): void {
   console.log(`quitx v${version}`);
 }
+
+export const THANKS_MESSAGE =
+  "\nThanks for using quitx..!\nFor more visit - quitx.js.org";
+
+export function printThanks(options?: {
+  json?: boolean | undefined;
+  quiet?: boolean | undefined;
+}): void {
+  if (options?.json || options?.quiet) return;
+  console.log(THANKS_MESSAGE);
+}

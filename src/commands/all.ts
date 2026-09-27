@@ -2,7 +2,13 @@ import { isCancel, spinner } from "@clack/prompts";
 import { getRunningApps } from "../macos/apps";
 import { quitApps } from "../macos/quit";
 import type { CliOptions } from "../types";
-import { renderResults, showCancel, showIntro, showOutro } from "../ui/output";
+import {
+  printThanks,
+  renderResults,
+  showCancel,
+  showIntro,
+  showOutro,
+} from "../ui/output";
 import { shouldConfirmQuit } from "../ui/selector";
 
 export async function allCommand(options: CliOptions = {}): Promise<number> {
@@ -21,6 +27,7 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
       console.log(JSON.stringify({ quit: 0, results: [] }, null, 2));
     } else {
       showOutro("No running apps found to quit.");
+      printThanks(options);
     }
     return 0;
   }
@@ -29,6 +36,7 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
     const confirmation = await shouldConfirmQuit(apps.length, true, false);
     if (isCancel(confirmation) || confirmation !== true) {
       showCancel("Cancelled.");
+      printThanks(options);
       return 0;
     }
   }
@@ -45,6 +53,7 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
     renderResults(results);
     const successCount = results.filter((r) => r.success).length;
     showOutro(`Quit ${successCount} of ${apps.length} apps.`);
+    printThanks(options);
   } else {
     console.log(
       JSON.stringify(

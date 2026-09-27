@@ -32,6 +32,21 @@ describe("selector ui", () => {
     expect(mockMultiselect).not.toHaveBeenCalled();
   });
 
+  it("selectApps pre-selects only Quit all apps option by default", async () => {
+    const apps: AppInfo[] = [
+      { name: "Arc", bundleId: "com.arc" },
+      { name: "Spotify", bundleId: "com.spotify" },
+    ];
+    mockMultiselect.mockResolvedValue([SELECT_ALL_VALUE]);
+
+    await selectApps(apps);
+    expect(mockMultiselect).toHaveBeenCalledWith(
+      expect.objectContaining({
+        initialValues: [SELECT_ALL_VALUE],
+      }),
+    );
+  });
+
   it("selectApps returns selected apps from multiselect", async () => {
     const apps: AppInfo[] = [
       { name: "Arc", bundleId: "company.thebrowser.Browser" },

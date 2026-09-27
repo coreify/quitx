@@ -28,6 +28,7 @@ vi.mock("@clack/prompts", () => ({
 
 import type { AppInfo, QuitResult } from "../src/types";
 import {
+  printThanks,
   renderHelp,
   renderList,
   renderResults,
@@ -35,11 +36,31 @@ import {
   showCancel,
   showIntro,
   showOutro,
+  THANKS_MESSAGE,
 } from "../src/ui/output";
 
 describe("output utilities", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("contains quitx.js.org in THANKS_MESSAGE and printThanks logs it", () => {
+    expect(THANKS_MESSAGE).toContain("quitx.js.org");
+    expect(THANKS_MESSAGE).toContain("Thanks for using quitx..!");
+
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    printThanks();
+    expect(logSpy).toHaveBeenCalledWith(THANKS_MESSAGE);
+
+    logSpy.mockClear();
+    printThanks({ json: true });
+    expect(logSpy).not.toHaveBeenCalled();
+
+    logSpy.mockClear();
+    printThanks({ quiet: true });
+    expect(logSpy).not.toHaveBeenCalled();
+
+    logSpy.mockRestore();
   });
 
   it("renders help and version without errors", () => {
