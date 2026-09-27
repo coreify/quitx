@@ -1,29 +1,25 @@
 import type { AppInfo } from "../types";
-import { runAppleScript, type ScriptExecutor } from "./applescript";
+import { runAppleScript, runJXA, type ScriptExecutor } from "./applescript";
 
 export function buildDiscoveryScript(includeBackground = false): string {
-  const filter = includeBackground
-    ? "every application process"
-    : "every application process whose background only is false";
+  const bg = includeBackground ? "true" : "false";
   return `
-tell application "System Events"
-\tset names to name of ${filter}
-\tset bundles to bundle identifier of ${filter}
-\tset pids to unix id of ${filter}
-\tset outList to {}
-\trepeat with i from 1 to count of pids
-\t\tset pName to item i of names
-\t\tset pBundle to item i of bundles
-\t\tset pPid to item i of pids
-\t\tset pDisp to ""
-\t\ttry
-\t\t\tset pDisp to displayed name of (file of (first application process whose unix id is pPid) as alias)
-\t\tend try
-\t\tset end of outList to (pName as text) & tab & (pBundle as text) & tab & (pPid as text) & tab & (pDisp as text)
-\tend repeat
-\tset AppleScript's text item delimiters to linefeed
-\toutList as text
-end tell
+ObjC.import('AppKit');
+function run() {
+  const includeBackground = ${bg};
+  const Regular = $.NSApplicationActivationPolicyRegular;
+  const apps = $.NSWorkspace.sharedWorkspace.runningApplications;
+  const lines = [];
+  for (let i = 0; i < apps.count; i++) {
+    const app = apps.objectAtIndex(i);
+    if (!includeBackground && app.activationPolicy !== Regular) continue;
+    const name = app.localizedName ? app.localizedName.js : '';
+    const bundleId = app.bundleIdentifier ? app.bundleIdentifier.js : '';
+    const pid = String(app.processIdentifier);
+    lines.push(name + '\\t' + bundleId + '\\t' + pid);
+  }
+  return lines.join('\\n');
+}
 `.trim();
 }
 
@@ -75,21 +71,8 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
           ? pidNum
           : undefined;
 
-      const rawDisp = parts[3]?.trim();
-      const dispName =
-        rawDisp && rawDisp !== "missing value" && rawDisp.length > 0
-          ? rawDisp.replace(/\.app$/i, "").trim()
-          : undefined;
-
       let name = rawName;
-
-      if (
-        dispName &&
-        dispName.length > 0 &&
-        dispName.toLowerCase() !== rawName.toLowerCase()
-      ) {
-        name = dispName;
-      } else if (!dispName && bundleId && rawName === bundleId) {
+      if (bundleId && rawName === bundleId) {
         name = formatDynamicName(bundleId);
       }
 
@@ -199,7 +182,7 @@ export async function getRunningApps(
   const script = buildDiscoveryScript(includeBackground);
   let stdout: string;
   try {
-    stdout = await runAppleScript(script, exec);
+    stdout = await runJXA(script, exec);
   } catch {
     stdout = await runAppleScript(FALLBACK_APP_DISCOVERY_SCRIPT, exec);
   }

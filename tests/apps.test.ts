@@ -14,10 +14,10 @@ import type { AppInfo } from "../src/types";
 describe("apps parser and filters", () => {
   it("parses tab-delimited output with bundleId and PID", () => {
     const stdout = [
-      "Finder\tcom.apple.finder\t101\tFinder.app",
-      "Spotify\tcom.spotify.client\t202\tSpotify.app",
-      "CustomApp\tmissing value\t303\t",
-      "NoPidApp\tcom.custom.nopid\tinvalid\tNoPidApp.app",
+      "Finder\tcom.apple.finder\t101",
+      "Spotify\tcom.spotify.client\t202",
+      "CustomApp\tmissing value\t303",
+      "NoPidApp\tcom.custom.nopid\tinvalid",
     ].join("\n");
 
     const apps = parseAppListOutput(stdout);
@@ -29,52 +29,26 @@ describe("apps parser and filters", () => {
     ]);
   });
 
-  it("resolves real app display name for Electron apps", () => {
+  it("uses process name as display name", () => {
     const stdout = [
-      "Electron\tcom.google.antigravity-ide\t82643\tAntigravity IDE.app",
-      "Electron\tcom.github.githubclient\t12345\tGitHub Desktop.app",
-      "Electron\tcom.todesktop.230313mzl4w4u92\t67890\tCursor.app",
-      "Google Chrome\tcom.google.Chrome\t5961\tGoogle Chrome.app",
+      "iTerm2\tcom.googlecode.iterm2\t23236",
+      "Electron\tcom.google.antigravity-ide\t82643",
+      "Google Chrome\tcom.google.Chrome\t5961",
     ].join("\n");
 
     const apps = parseAppListOutput(stdout);
     expect(apps).toEqual([
-      {
-        name: "Antigravity IDE",
-        bundleId: "com.google.antigravity-ide",
-        pid: 82643,
-      },
-      {
-        name: "GitHub Desktop",
-        bundleId: "com.github.githubclient",
-        pid: 12345,
-      },
-      {
-        name: "Cursor",
-        bundleId: "com.todesktop.230313mzl4w4u92",
-        pid: 67890,
-      },
-      {
-        name: "Google Chrome",
-        bundleId: "com.google.Chrome",
-        pid: 5961,
-      },
+      { name: "iTerm2", bundleId: "com.googlecode.iterm2", pid: 23236 },
+      { name: "Electron", bundleId: "com.google.antigravity-ide", pid: 82643 },
+      { name: "Google Chrome", bundleId: "com.google.Chrome", pid: 5961 },
     ]);
+  });
 
-    const iTermStdout =
-      "iTerm2\tcom.googlecode.iterm2\t23236\tiTerm.app\nElectron\tcom.trae.app\t22558\tTraeCode.app\n";
-    const iTermApps = parseAppListOutput(iTermStdout);
-    expect(iTermApps).toEqual([
-      {
-        name: "iTerm",
-        bundleId: "com.googlecode.iterm2",
-        pid: 23236,
-      },
-      {
-        name: "TraeCode",
-        bundleId: "com.trae.app",
-        pid: 22558,
-      },
+  it("derives name from bundleId when process name matches bundleId", () => {
+    const stdout = "com.openai.chat\tcom.openai.chat\t42";
+    const apps = parseAppListOutput(stdout);
+    expect(apps).toEqual([
+      { name: "Chat", bundleId: "com.openai.chat", pid: 42 },
     ]);
   });
 
@@ -187,20 +161,20 @@ describe("apps parser and filters", () => {
 
   it("buildDiscoveryScript generates foreground-only script by default", () => {
     const script = buildDiscoveryScript(false);
-    expect(script).toContain("background only is false");
-    expect(script).not.toContain("every application process\n");
+    expect(script).toContain("ObjC.import('AppKit')");
+    expect(script).toContain("localizedName");
+    expect(script).toContain("app.activationPolicy !== Regular");
   });
 
   it("buildDiscoveryScript generates all-process script when includeBackground is true", () => {
     const script = buildDiscoveryScript(true);
-    expect(script).toContain("every application process");
-    expect(script).not.toContain("background only is false");
+    expect(script).toContain("const includeBackground = true;");
+    expect(script).not.toContain("const includeBackground = false;");
   });
 
   it("getRunningApps fetches, parses, and filters apps", async () => {
     const mockExecutor = vi.fn().mockResolvedValue({
-      stdout:
-        "Finder\tcom.apple.finder\t1\tFinder.app\nSpotify\tcom.spotify.client\t2\tSpotify.app\n",
+      stdout: "Finder\tcom.apple.finder\t1\nSpotify\tcom.spotify.client\t2\n",
     });
 
     const apps = await getRunningApps(mockExecutor);
@@ -211,8 +185,7 @@ describe("apps parser and filters", () => {
 
   it("getRunningApps accepts options object with includeFinder", async () => {
     const mockExecutor = vi.fn().mockResolvedValue({
-      stdout:
-        "Finder\tcom.apple.finder\t1\tFinder.app\nSpotify\tcom.spotify.client\t2\tSpotify.app\n",
+      stdout: "Finder\tcom.apple.finder\t1\nSpotify\tcom.spotify.client\t2\n",
     });
 
     const apps = await getRunningApps(
