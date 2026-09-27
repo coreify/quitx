@@ -81,6 +81,17 @@ describe("cli parser and dispatcher", () => {
     expect(opts2.manageConfig).toBe(true);
   });
 
+  it("parses check-update and --no-update-check flags", () => {
+    const opts1 = parseCliArgs(["check-update"]);
+    expect(opts1.checkUpdate).toBe(true);
+
+    const opts2 = parseCliArgs(["--check-update"]);
+    expect(opts2.checkUpdate).toBe(true);
+
+    const opts3 = parseCliArgs(["--no-update-check"]);
+    expect(opts3.noUpdateCheck).toBe(true);
+  });
+
   it("handles help and version flags", async () => {
     const helpSpy = vi.spyOn(output, "renderHelp").mockImplementation(() => {});
     const versionSpy = vi
@@ -176,6 +187,20 @@ describe("cli parser and dispatcher", () => {
     expect(interactiveSpy).toHaveBeenCalled();
 
     interactiveSpy.mockRestore();
+  });
+
+  it("handles check-update with json output", async () => {
+    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const code = await main(["check-update", "--json"]);
+    expect(code).toBe(0);
+    expect(consoleLogSpy).toHaveBeenCalled();
+    const outputArg = String(consoleLogSpy.mock.calls[0]?.[0] ?? "{}");
+    const parsed: unknown = JSON.parse(outputArg);
+    expect(parsed).toHaveProperty("updateAvailable");
+    expect(parsed).toHaveProperty("latestVersion");
+
+    consoleLogSpy.mockRestore();
   });
 
   it("handles unexpected errors cleanly", async () => {

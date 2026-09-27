@@ -1,3 +1,4 @@
+import { isCancel, note, select, spinner } from "@clack/prompts";
 import { readFile } from "node:fs/promises";
 import { allCommand } from "./commands/all";
 import { configCommand } from "./commands/config";
@@ -5,7 +6,20 @@ import { excludeCommand } from "./commands/exclude";
 import { interactiveCommand } from "./commands/interactive";
 import { listCommand } from "./commands/list";
 import type { CliOptions } from "./types";
-import { printThanks, renderHelp, renderVersion } from "./ui/output";
+import {
+  printThanks,
+  renderHelp,
+  renderVersion,
+  showIntro,
+  showOutro,
+} from "./ui/output";
+import {
+  checkForUpdate,
+  checkUpdateManually,
+  ignoreUpdateVersion,
+  installUpdate,
+  updateNotice,
+} from "./update";
 import { ensureMacOS, isMacOS } from "./utils/platform";
 
 export async function getPackageVersion(): Promise<string> {
@@ -46,6 +60,10 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
       options.manageConfig = true;
     } else if (arg === "exclude") {
       options.manageExclude = true;
+    } else if (arg === "check-update" || arg === "--check-update") {
+      options.checkUpdate = true;
+    } else if (arg === "--no-update-check") {
+      options.noUpdateCheck = true;
     } else if (arg === "-a" || arg === "--all") {
       options.all = true;
     } else if (arg === "-y" || arg === "--yes") {
@@ -142,6 +160,153 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
   return options;
 }
 
+export async function handleManualUpdateCheck(
+  version: string,
+  options: CliOptions,
+): Promise<number> {
+  const isInteractive =
+    !options.json && Boolean(process.stdout.isTTY && process.stdin.isTTY);
+
+  if (options.json) {
+    const result = await checkUpdateManually(version, { force: options.force });
+    console.log(JSON.stringify(result, null, 2));
+    return 0;
+  }
+
+  if (isInteractive) {
+    showIntro();
+    const checkSpinner = spinner();
+    checkSpinner.start("Checking npm registry for updates");
+    const result = await checkUpdateManually(version, { force: options.force });
+    if (result.rateLimited) {
+      checkSpinner.stop(
+        `Checked recently (rate limited, 60s cooldown). Latest: v${result.latestVersion}`,
+      );
+    } else if (result.updateAvailable) {
+      checkSpinner.stop(
+        `Update available: ${result.currentVersion} → ${result.latestVersion}`,
+      );
+    } else {
+      checkSpinner.stop(`quitx is up to date (v${result.currentVersion})`);
+    }
+
+    if (result.updateAvailable) {
+      note(
+        `Run: npm install --global @coreify/quitx@latest`,
+        "Upgrade Available",
+      );
+      const answer = await select({
+        message: `Install v${result.latestVersion} now?`,
+        options: [
+          { value: "install", label: "Install update now" },
+          { value: "skip", label: "Skip for now" },
+        ],
+        initialValue: "install",
+      });
+      if (isCancel(answer) || answer === "skip") {
+        printThanks(options);
+        return 0;
+      }
+      if (answer === "install") {
+        console.log(`Updating to ${result.latestVersion}...`);
+        try {
+          await installUpdate(result.latestVersion);
+          showOutro(
+            `Updated to ${result.latestVersion}. Restart quitx to use it.`,
+          );
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(`Failed to install update: ${msg}`);
+        }
+      }
+    }
+    printThanks(options);
+    return 0;
+  }
+
+  const result = await checkUpdateManually(version, { force: options.force });
+  if (result.updateAvailable) {
+    console.log(
+      `Update available: ${result.currentVersion} → ${result.latestVersion}`,
+    );
+    console.log("Run: npm install --global @coreify/quitx@latest");
+  } else {
+    console.log(`quitx is up to date (${result.currentVersion})`);
+  }
+  if (result.rateLimited) {
+    console.log(
+      "(Checked recently with 60s rate limit; use --force to bypass)",
+    );
+  }
+  printThanks(options);
+  return 0;
+}
+
+export async function handleAutoUpdateCheck(
+  currentVersion: string,
+  options: CliOptions,
+): Promise<void> {
+  if (
+    options.noUpdateCheck ||
+    options.checkUpdate ||
+    options.help ||
+    options.version
+  ) {
+    return;
+  }
+
+  try {
+    const update = await checkForUpdate(currentVersion);
+    if (!update) return;
+
+    if (
+      options.json ||
+      options.yes ||
+      !process.stdin.isTTY ||
+      !process.stdout.isTTY
+    ) {
+      console.error(updateNotice(update));
+      return;
+    }
+
+    console.log(
+      `\nUpdate available · ${update.currentVersion} → ${update.latestVersion}\nRelease notes: ${update.releaseUrl}`,
+    );
+    const action = await select({
+      message: "Update quitx?",
+      options: [
+        { value: "update", label: "Update now", hint: "npm install --global" },
+        { value: "skip", label: "Skip" },
+        {
+          value: "ignore",
+          label: "Skip this version",
+          hint: `hide ${update.latestVersion}`,
+        },
+      ],
+      initialValue: "update",
+    });
+    if (isCancel(action) || action === "skip") {
+      return;
+    }
+    if (action === "ignore") {
+      await ignoreUpdateVersion(update.latestVersion);
+      return;
+    }
+
+    console.log(`Updating to ${update.latestVersion}...`);
+    try {
+      await installUpdate(update.latestVersion);
+      showOutro(`Updated to ${update.latestVersion}. Restart quitx to use it.`);
+      process.exit(0);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`Failed to install update: ${msg}`);
+    }
+  } catch {
+    // Non-blocking
+  }
+}
+
 export async function main(argv = process.argv.slice(2)): Promise<number> {
   if (!isMacOS()) {
     console.error(
@@ -173,11 +338,20 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     return 0;
   }
 
+  const version = await getPackageVersion();
+
   if (options.version) {
-    const version = await getPackageVersion();
     renderVersion(version);
     printThanks(options);
     return 0;
+  }
+
+  if (options.checkUpdate) {
+    return await handleManualUpdateCheck(version, options);
+  }
+
+  if (!options.noUpdateCheck && !options.json) {
+    await handleAutoUpdateCheck(version, options);
   }
 
   try {

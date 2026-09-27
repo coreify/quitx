@@ -45,6 +45,8 @@ export interface CliOptions {
   neverQuitMusic?: boolean | undefined;
   musicApps?: string[] | undefined;
   apps?: string[] | undefined;
+  checkUpdate?: boolean | undefined;
+  noUpdateCheck?: boolean | undefined;
 }
 
 export interface QuitOptions {

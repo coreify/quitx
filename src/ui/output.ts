@@ -53,6 +53,8 @@ OPTIONS:
       --include-finder    Include Finder in the app list
       --include-trash     Include Trash in the app list (empties on quit)
       --exclude <apps>    Add apps to persistent exclude list (comma-separated)
+      --check-update      Check for package updates (60s rate limit)
+      --no-update-check   Disable automatic update check for this run
       --config            Open interactive config manager
       --json              Output data in JSON format
   -h, --help              Show help information
@@ -61,6 +63,7 @@ OPTIONS:
 COMMANDS:
   config                  Manage configuration interactively
   exclude                 Manage excluded applications interactively
+  check-update            Check for package updates
 
 EXAMPLES:
   $ quitx                         Interactive app selector
@@ -71,6 +74,7 @@ EXAMPLES:
   $ quitx --list --include-finder List apps including Finder
   $ quitx config                  Open interactive config manager
   $ quitx exclude                 Open interactive menu to manage excluded apps
+  $ quitx check-update            Check for package updates
   $ quitx --exclude Spotify,Slack Add Spotify and Slack to exclude list
   $ quitx Slack,Discord           Quit specific apps directly
 `.trim(),
