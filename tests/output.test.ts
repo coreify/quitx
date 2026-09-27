@@ -7,12 +7,22 @@ const mockLogSuccess = vi.fn();
 const mockLogError = vi.fn();
 
 vi.mock("@clack/prompts", () => ({
-  intro: (...args: unknown[]) => mockIntro(...args),
-  outro: (...args: unknown[]) => mockOutro(...args),
-  cancel: (...args: unknown[]) => mockCancel(...args),
+  intro: (...args: unknown[]) => {
+    mockIntro(...args);
+  },
+  outro: (...args: unknown[]) => {
+    mockOutro(...args);
+  },
+  cancel: (...args: unknown[]) => {
+    mockCancel(...args);
+  },
   log: {
-    success: (...args: unknown[]) => mockLogSuccess(...args),
-    error: (...args: unknown[]) => mockLogError(...args),
+    success: (...args: unknown[]) => {
+      mockLogSuccess(...args);
+    },
+    error: (...args: unknown[]) => {
+      mockLogError(...args);
+    },
   },
 }));
 

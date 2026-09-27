@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ScriptExecutor } from "../src/macos/applescript";
 import {
   forceQuitApp,
   getQuitScript,
@@ -7,6 +8,18 @@ import {
   sendQuitSignal,
 } from "../src/macos/quit";
 import type { AppInfo } from "../src/types";
+
+function createScriptMock(
+  handler: (script: string) => boolean,
+): ScriptExecutor {
+  return vi.fn().mockImplementation((_cmd: string, args: readonly string[]) => {
+    const script = args[1] ?? "";
+    if (script.includes("return (exists")) {
+      return Promise.resolve({ stdout: handler(script) ? "true" : "false" });
+    }
+    return Promise.resolve({ stdout: "" });
+  });
+}
 
 describe("quit service", () => {
   it("generates quit script by bundleId when available", () => {
@@ -27,7 +40,7 @@ describe("quit service", () => {
   });
 
   it("sendQuitSignal falls back to app name if bundleId script errors", async () => {
-    const mockExecutor = vi
+    const mockExecutor: ScriptExecutor = vi
       .fn()
       .mockRejectedValueOnce(new Error("Unknown bundle identifier"))
       .mockResolvedValueOnce({ stdout: "" });
@@ -46,7 +59,7 @@ describe("quit service", () => {
   });
 
   it("sendQuitSignal rethrows error when app name script errors and no bundleId", async () => {
-    const mockExecutor = vi
+    const mockExecutor: ScriptExecutor = vi
       .fn()
       .mockRejectedValue(new Error("Generic osascript error"));
     const app: AppInfo = { name: "DirectApp" };
@@ -57,7 +70,7 @@ describe("quit service", () => {
   });
 
   it("forceQuitApp calls SIGKILL when pid is present", () => {
-    const killSpy = vi.spyOn(process, "kill").mockReturnValue(true as never);
+    const killSpy = vi.spyOn(process, "kill").mockReturnValue(true);
     const app: AppInfo = { name: "TestApp", pid: 98765 };
 
     const result = forceQuitApp(app);
@@ -83,14 +96,7 @@ describe("quit service", () => {
   });
 
   it("quitApp succeeds when app exits after quit event", async () => {
-    const mockExecutor = vi.fn().mockImplementation((cmd, args) => {
-      const script = args[1] as string;
-      if (script.includes("return (exists")) {
-        return Promise.resolve({ stdout: "false" }); // not running
-      }
-      return Promise.resolve({ stdout: "" });
-    });
-
+    const mockExecutor = createScriptMock(() => false);
     const app: AppInfo = { name: "Slack", bundleId: "com.tinyspeck.slack" };
     const res = await quitApp(app, { timeoutMs: 1 }, mockExecutor);
 
@@ -99,14 +105,7 @@ describe("quit service", () => {
   });
 
   it("quitApp reports error when app remains open and force is false", async () => {
-    const mockExecutor = vi.fn().mockImplementation((cmd, args) => {
-      const script = args[1] as string;
-      if (script.includes("return (exists")) {
-        return Promise.resolve({ stdout: "true" }); // still running
-      }
-      return Promise.resolve({ stdout: "" });
-    });
-
+    const mockExecutor = createScriptMock(() => true);
     const app: AppInfo = { name: "TextEdit" };
     const res = await quitApp(
       app,
@@ -121,23 +120,27 @@ describe("quit service", () => {
 
   it("quitApp handles sendQuitSignal failure and force quit immediately", async () => {
     let alive = true;
-    const killSpy = vi.spyOn(process, "kill").mockImplementation((pid, sig) => {
-      if (sig === "SIGKILL") {
-        alive = false;
-        return true as never;
-      }
-      if (sig === 0) {
-        if (!alive) {
-          const err = new Error("No such process");
-          (err as unknown as { code: string }).code = "ESRCH";
-          throw err;
+    const killSpy = vi
+      .spyOn(process, "kill")
+      .mockImplementation((_pid, sig) => {
+        if (sig === "SIGKILL") {
+          alive = false;
+          return true;
         }
-        return true as never;
-      }
-      return true as never;
-    });
+        if (sig === 0) {
+          if (!alive) {
+            const err = new Error("No such process");
+            (err as unknown as { code: string }).code = "ESRCH";
+            throw err;
+          }
+          return true;
+        }
+        return true;
+      });
 
-    const mockExecutor = vi.fn().mockRejectedValue(new Error("Send failed"));
+    const mockExecutor: ScriptExecutor = vi
+      .fn()
+      .mockRejectedValue(new Error("Send failed"));
     const app: AppInfo = { name: "ErrorApp", pid: 4444 };
 
     const res = await quitApp(app, { timeoutMs: 1, force: true }, mockExecutor);
@@ -147,7 +150,9 @@ describe("quit service", () => {
   });
 
   it("quitApp handles sendQuitSignal failure without force", async () => {
-    const mockExecutor = vi.fn().mockRejectedValue(new Error("Send failed"));
+    const mockExecutor: ScriptExecutor = vi
+      .fn()
+      .mockRejectedValue(new Error("Send failed"));
     const app: AppInfo = { name: "ErrorApp" };
 
     const res = await quitApp(
@@ -162,23 +167,27 @@ describe("quit service", () => {
 
   it("quitApp escalates to force quit when requested", async () => {
     let alive = true;
-    const killSpy = vi.spyOn(process, "kill").mockImplementation((pid, sig) => {
-      if (sig === "SIGKILL") {
-        alive = false;
-        return true as never;
-      }
-      if (sig === 0) {
-        if (!alive) {
-          const err = new Error("No such process");
-          (err as unknown as { code: string }).code = "ESRCH";
-          throw err;
+    const killSpy = vi
+      .spyOn(process, "kill")
+      .mockImplementation((_pid, sig) => {
+        if (sig === "SIGKILL") {
+          alive = false;
+          return true;
         }
-        return true as never;
-      }
-      return true as never;
-    });
+        if (sig === 0) {
+          if (!alive) {
+            const err = new Error("No such process");
+            (err as unknown as { code: string }).code = "ESRCH";
+            throw err;
+          }
+          return true;
+        }
+        return true;
+      });
 
-    const mockExecutor = vi.fn().mockResolvedValue({ stdout: "" });
+    const mockExecutor: ScriptExecutor = vi
+      .fn()
+      .mockResolvedValue({ stdout: "" });
     const app: AppInfo = { name: "StubbornApp", pid: 12345 };
 
     const res = await quitApp(app, { timeoutMs: 1, force: true }, mockExecutor);
@@ -194,13 +203,7 @@ describe("quit service", () => {
       (err as unknown as { code: string }).code = "EPERM";
       throw err;
     });
-    const mockExecutor = vi.fn().mockImplementation((cmd, args) => {
-      const script = args[1] as string;
-      if (script.includes("return (exists")) {
-        return Promise.resolve({ stdout: "true" });
-      }
-      return Promise.resolve({ stdout: "" });
-    });
+    const mockExecutor = createScriptMock(() => true);
     const app: AppInfo = { name: "Unkillable", pid: 9999 };
 
     const res = await quitApp(app, { timeoutMs: 1, force: true }, mockExecutor);
@@ -211,14 +214,7 @@ describe("quit service", () => {
   });
 
   it("quitApps quits multiple apps in parallel", async () => {
-    const mockExecutor = vi.fn().mockImplementation((cmd, args) => {
-      const script = args[1] as string;
-      if (script.includes("return (exists")) {
-        return Promise.resolve({ stdout: "false" });
-      }
-      return Promise.resolve({ stdout: "" });
-    });
-
+    const mockExecutor = createScriptMock(() => false);
     const apps: AppInfo[] = [
       { name: "AppOne", bundleId: "com.app.one" },
       { name: "AppTwo", bundleId: "com.app.two" },
@@ -231,28 +227,26 @@ describe("quit service", () => {
 
   it("quitApps handles force quit across multiple apps", async () => {
     let alive = true;
-    const killSpy = vi.spyOn(process, "kill").mockImplementation((pid, sig) => {
-      if (sig === "SIGKILL") {
-        alive = false;
-        return true as never;
-      }
-      if (sig === 0) {
-        if (!alive) {
-          const err = new Error("No such process");
-          (err as unknown as { code: string }).code = "ESRCH";
-          throw err;
+    const killSpy = vi
+      .spyOn(process, "kill")
+      .mockImplementation((_pid, sig) => {
+        if (sig === "SIGKILL") {
+          alive = false;
+          return true;
         }
-        return true as never;
-      }
-      return true as never;
-    });
+        if (sig === 0) {
+          if (!alive) {
+            const err = new Error("No such process");
+            (err as unknown as { code: string }).code = "ESRCH";
+            throw err;
+          }
+          return true;
+        }
+        return true;
+      });
 
-    const mockExecutor = vi.fn().mockImplementation((cmd, args) => {
-      const script = args[1] as string;
-      if (script.includes("return (exists")) {
-        return Promise.resolve({ stdout: alive ? "true" : "false" });
-      }
-      return Promise.resolve({ stdout: "" });
+    const mockExecutor: ScriptExecutor = vi.fn().mockImplementation(() => {
+      return Promise.resolve({ stdout: alive ? "true" : "false" });
     });
 
     const apps: AppInfo[] = [{ name: "ForcedApp", pid: 5555 }];

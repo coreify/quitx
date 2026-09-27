@@ -1,13 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockMultiselect = vi.fn();
-const mockConfirm = vi.fn();
-const mockIsCancel = vi.fn((val: unknown) => typeof val === "symbol");
+const mockMultiselect =
+  vi.fn<(...args: unknown[]) => Promise<string[] | symbol>>();
+const mockConfirm = vi.fn<(...args: unknown[]) => Promise<boolean | symbol>>();
+const mockIsCancel = vi.fn<(val: unknown) => boolean>(
+  (val) => typeof val === "symbol",
+);
 
 vi.mock("@clack/prompts", () => ({
-  multiselect: (...args: unknown[]) => mockMultiselect(...args),
-  confirm: (...args: unknown[]) => mockConfirm(...args),
-  isCancel: (val: unknown) => mockIsCancel(val),
+  multiselect: (...args: unknown[]): Promise<string[] | symbol> =>
+    mockMultiselect(...args),
+  confirm: (...args: unknown[]): Promise<boolean | symbol> =>
+    mockConfirm(...args),
+  isCancel: (val: unknown): boolean => mockIsCancel(val),
 }));
 
 import type { AppInfo } from "../src/types";

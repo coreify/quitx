@@ -1,31 +1,46 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockIntro = vi.fn();
-const mockOutro = vi.fn();
-const mockCancel = vi.fn();
-const mockConfirm = vi.fn();
-const mockMultiselect = vi.fn();
-const mockSpinnerStart = vi.fn();
-const mockSpinnerStop = vi.fn();
-const mockLogWarn = vi.fn();
-const mockLogSuccess = vi.fn();
-const mockLogError = vi.fn();
+const mockIntro = vi.fn<(...args: unknown[]) => void>();
+const mockOutro = vi.fn<(...args: unknown[]) => void>();
+const mockCancel = vi.fn<(...args: unknown[]) => void>();
+const mockConfirm = vi.fn<(...args: unknown[]) => Promise<boolean | symbol>>();
+const mockMultiselect =
+  vi.fn<(...args: unknown[]) => Promise<string[] | symbol>>();
+const mockSpinnerStart = vi.fn<(...args: unknown[]) => void>();
+const mockSpinnerStop = vi.fn<(...args: unknown[]) => void>();
+const mockLogWarn = vi.fn<(...args: unknown[]) => void>();
+const mockLogSuccess = vi.fn<(...args: unknown[]) => void>();
+const mockLogError = vi.fn<(...args: unknown[]) => void>();
 
 vi.mock("@clack/prompts", () => ({
-  intro: (...args: unknown[]) => mockIntro(...args),
-  outro: (...args: unknown[]) => mockOutro(...args),
-  cancel: (...args: unknown[]) => mockCancel(...args),
-  confirm: (...args: unknown[]) => mockConfirm(...args),
-  multiselect: (...args: unknown[]) => mockMultiselect(...args),
-  isCancel: (val: unknown) => typeof val === "symbol",
+  intro: (...args: unknown[]) => {
+    mockIntro(...args);
+  },
+  outro: (...args: unknown[]) => {
+    mockOutro(...args);
+  },
+  cancel: (...args: unknown[]) => {
+    mockCancel(...args);
+  },
+  confirm: (...args: unknown[]): Promise<boolean | symbol> =>
+    mockConfirm(...args),
+  multiselect: (...args: unknown[]): Promise<string[] | symbol> =>
+    mockMultiselect(...args),
+  isCancel: (val: unknown): boolean => typeof val === "symbol",
   spinner: () => ({
     start: mockSpinnerStart,
     stop: mockSpinnerStop,
   }),
   log: {
-    warn: (...args: unknown[]) => mockLogWarn(...args),
-    success: (...args: unknown[]) => mockLogSuccess(...args),
-    error: (...args: unknown[]) => mockLogError(...args),
+    warn: (...args: unknown[]) => {
+      mockLogWarn(...args);
+    },
+    success: (...args: unknown[]) => {
+      mockLogSuccess(...args);
+    },
+    error: (...args: unknown[]) => {
+      mockLogError(...args);
+    },
   },
 }));
 
