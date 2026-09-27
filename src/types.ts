@@ -19,6 +19,7 @@ export interface QuitxConfig {
   exclude: string[];
   force: "normal" | "force";
   includeFinder: boolean;
+  includeTrash: boolean;
   includeBackground: boolean;
   groupBackground: boolean;
   defaultSelectAll: boolean;
@@ -39,6 +40,7 @@ export interface CliOptions {
   manageExclude?: boolean | undefined;
   manageConfig?: boolean | undefined;
   includeFinder?: boolean | undefined;
+  includeTrash?: boolean | undefined;
   includeBackground?: boolean | undefined;
   neverQuitMusic?: boolean | undefined;
   musicApps?: string[] | undefined;

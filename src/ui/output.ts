@@ -51,6 +51,7 @@ OPTIONS:
   -f, --force             Force quit apps (SIGKILL) if normal quit fails
   -b, --background        Include background processes in app list
       --include-finder    Include Finder in the app list
+      --include-trash     Include Trash in the app list (empties on quit)
       --exclude <apps>    Add apps to persistent exclude list (comma-separated)
       --config            Open interactive config manager
       --json              Output data in JSON format

@@ -6,6 +6,7 @@ import { renderList } from "../ui/output";
 export async function listCommand(options: CliOptions = {}): Promise<number> {
   const config = loadConfig();
   const includeFinder = options.includeFinder ?? config.includeFinder;
+  const includeTrash = options.includeTrash ?? config.includeTrash;
   const includeBackground =
     options.includeBackground ?? config.includeBackground;
   const neverQuitMusic = options.neverQuitMusic ?? config.neverQuitMusic;
@@ -13,6 +14,7 @@ export async function listCommand(options: CliOptions = {}): Promise<number> {
   const apps = await getRunningApps({
     exclude: config.exclude,
     includeFinder,
+    includeTrash,
     includeBackground,
     groupBackground: config.groupBackground,
     neverQuitMusic,

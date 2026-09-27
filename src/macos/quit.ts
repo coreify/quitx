@@ -3,8 +3,19 @@ import type { AppInfo, QuitOptions, QuitResult } from "../types";
 import { sleep } from "../utils/sleep";
 import { isAppRunning } from "./apps";
 import { buildAppMatcherScript } from "./jxa";
-import { runJXA, type ScriptExecutor } from "./osascript";
+import { runAppleScript, runJXA, type ScriptExecutor } from "./osascript";
 import { isCurrentTerminalApp } from "./terminal";
+
+export const EMPTY_TRASH_SCRIPT = `
+ignoring application responses
+    tell application "Finder"
+        try
+            set warns before emptying to false
+            empty the trash
+        end try
+    end tell
+end ignoring
+`.trim();
 
 const QUIT_JXA_SCRIPT = buildAppMatcherScript(`
 const bundleId = argv[0] || '';
@@ -58,6 +69,14 @@ export async function sendQuitSignal(
   app: AppInfo,
   executor?: ScriptExecutor,
 ): Promise<void> {
+  if (
+    app.bundleId === "com.apple.trash" ||
+    app.name.toLowerCase() === "trash"
+  ) {
+    await runAppleScript(EMPTY_TRASH_SCRIPT, executor);
+    return;
+  }
+
   if (app.pids && app.pids.length > 1) {
     let anyQuit = false;
     for (const pid of app.pids) {

@@ -27,6 +27,7 @@ export async function interactiveCommand(
   const config = loadConfig();
   const useForce = options.force ?? config.force === "force";
   const includeFinder = options.includeFinder ?? config.includeFinder;
+  const includeTrash = options.includeTrash ?? config.includeTrash;
   const includeBackground =
     options.includeBackground ?? config.includeBackground;
   const neverQuitMusic = options.neverQuitMusic ?? config.neverQuitMusic;
@@ -34,6 +35,7 @@ export async function interactiveCommand(
   const apps = await getRunningApps({
     exclude: config.exclude,
     includeFinder,
+    includeTrash,
     includeBackground,
     groupBackground: config.groupBackground,
     neverQuitMusic,

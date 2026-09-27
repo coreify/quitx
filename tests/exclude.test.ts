@@ -43,6 +43,7 @@ const fullConfig = (overrides: Partial<QuitxConfig> = {}): QuitxConfig => ({
   exclude: [] as string[],
   force: "normal" as const,
   includeFinder: false,
+  includeTrash: false,
   includeBackground: false,
   neverQuitMusic: false,
   musicApps: [],

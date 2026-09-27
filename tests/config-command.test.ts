@@ -40,6 +40,7 @@ const fullConfig = (overrides: Partial<QuitxConfig> = {}): QuitxConfig => ({
   exclude: [],
   force: "normal",
   includeFinder: false,
+  includeTrash: false,
   includeBackground: false,
   groupBackground: true,
   defaultSelectAll: true,
@@ -107,6 +108,25 @@ describe("config command", () => {
       expect.objectContaining({ includeFinder: true }),
     );
     expect(mockLogSuccess).toHaveBeenCalledWith("Include Finder: enabled");
+  });
+
+  it("toggles include trash to enabled", async () => {
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(fullConfig());
+    const saveSpy = vi
+      .spyOn(configModule, "saveConfig")
+      .mockImplementation(() => {});
+
+    mockSelect
+      .mockResolvedValueOnce("trash")
+      .mockResolvedValueOnce("enabled")
+      .mockResolvedValueOnce("exit");
+
+    const code = await configCommand();
+    expect(code).toBe(0);
+    expect(saveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ includeTrash: true }),
+    );
+    expect(mockLogSuccess).toHaveBeenCalledWith("Include Trash: enabled");
   });
 
   it("toggles background apps to enabled", async () => {

@@ -10,6 +10,7 @@ export const DEFAULT_CONFIG: QuitxConfig = {
   exclude: [],
   force: "normal",
   includeFinder: false,
+  includeTrash: false,
   includeBackground: false,
   groupBackground: true,
   defaultSelectAll: true,
@@ -62,6 +63,10 @@ export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
         typeof obj.includeFinder === "boolean"
           ? obj.includeFinder
           : DEFAULT_CONFIG.includeFinder,
+      includeTrash:
+        typeof obj.includeTrash === "boolean"
+          ? obj.includeTrash
+          : DEFAULT_CONFIG.includeTrash,
       includeBackground:
         typeof obj.includeBackground === "boolean"
           ? obj.includeBackground

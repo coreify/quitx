@@ -66,6 +66,32 @@ async function toggleIncludeFinder(): Promise<void> {
   );
 }
 
+async function toggleIncludeTrash(): Promise<void> {
+  const config = loadConfig();
+  const choice = await select({
+    message: `Include Trash (current: ${config.includeTrash ? "enabled" : "disabled"})`,
+    options: [
+      {
+        value: "disabled",
+        label: "Disabled",
+        hint: "Trash is excluded from the quit list.",
+      },
+      {
+        value: "enabled",
+        label: "Enabled",
+        hint: "Trash appears in the quit list like an app and empties when quit.",
+      },
+      backOption(),
+    ],
+    initialValue: config.includeTrash ? "enabled" : "disabled",
+  });
+
+  if (isCancel(choice) || choice === BACK_VALUE) return;
+  config.includeTrash = choice === "enabled";
+  saveConfig(config);
+  log.success(`Include Trash: ${config.includeTrash ? "enabled" : "disabled"}`);
+}
+
 async function toggleIncludeBackground(): Promise<void> {
   const config = loadConfig();
   const choice = await select({
@@ -377,42 +403,47 @@ export async function configCommand(): Promise<number> {
       options: [
         {
           value: "quit-mode",
-          label: `Toggle Quit Mode`,
+          label: "Quit Mode",
           hint: `current: ${config.force}`,
         },
         {
           value: "default-select",
-          label: `Toggle Default Selection`,
+          label: "Default App Selection",
           hint: `current: ${config.defaultSelectAll ? "select-all" : "deselect-all"}`,
         },
         {
           value: "group-background",
-          label: `Toggle Group Background Instances`,
+          label: "Group Background Instances",
           hint: `current: ${config.groupBackground ? "enabled" : "disabled"}`,
         },
         {
           value: "never-quit-music",
-          label: `Toggle Never Quit Music Apps`,
+          label: "Never Quit Music Apps",
           hint: `current: ${config.neverQuitMusic ? "enabled" : "disabled"}`,
         },
         {
           value: "finder",
-          label: `Toggle Include Finder`,
+          label: "Include Finder",
           hint: `current: ${config.includeFinder ? "enabled" : "disabled"}`,
         },
         {
+          value: "trash",
+          label: "Include Trash",
+          hint: `current: ${config.includeTrash ? "enabled" : "disabled"}`,
+        },
+        {
           value: "background",
-          label: `Toggle Background Apps`,
+          label: "Include Background Apps",
           hint: `current: ${config.includeBackground ? "enabled" : "disabled"}`,
         },
         {
           value: "exclude",
-          label: "Manage Excluded Apps",
+          label: "Excluded Apps",
           hint: `${config.exclude.length} excluded`,
         },
         {
           value: "custom-music",
-          label: "Manage Custom Music Apps",
+          label: "Custom Music Apps",
           hint: `${config.musicApps.length} custom apps`,
         },
         {
@@ -434,6 +465,7 @@ export async function configCommand(): Promise<number> {
     if (choice === "group-background") await toggleGroupBackground();
     if (choice === "never-quit-music") await toggleNeverQuitMusic();
     if (choice === "finder") await toggleIncludeFinder();
+    if (choice === "trash") await toggleIncludeTrash();
     if (choice === "background") await toggleIncludeBackground();
     if (choice === "exclude") await manageExcludedApps();
     if (choice === "custom-music") await manageCustomMusicApps();

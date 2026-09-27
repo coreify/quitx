@@ -19,3 +19,11 @@ export async function runJXA(
   ]);
   return stdout.trim();
 }
+
+export async function runAppleScript(
+  script: string,
+  executor: ScriptExecutor = execa,
+): Promise<string> {
+  const { stdout } = await executor("osascript", ["-e", script]);
+  return stdout.trim();
+}

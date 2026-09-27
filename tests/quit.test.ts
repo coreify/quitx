@@ -337,4 +337,22 @@ describe("quit service", () => {
       }
     }
   });
+
+  it("quitApp empties Trash when app is Trash", async () => {
+    const mockExecutor: ScriptExecutor = vi
+      .fn()
+      .mockResolvedValue({ stdout: "" });
+    const trashApp: AppInfo = {
+      name: "Trash",
+      bundleId: "com.apple.trash",
+    };
+
+    const res = await quitApp(trashApp, {}, mockExecutor);
+    expect(res.success).toBe(true);
+    expect(res.forced).toBe(false);
+    expect(mockExecutor).toHaveBeenCalledWith(
+      "osascript",
+      expect.arrayContaining(["-e"]),
+    );
+  });
 });

@@ -41,6 +41,7 @@ describe("config storage", () => {
       exclude: [],
       force: "normal",
       includeFinder: false,
+      includeTrash: false,
       includeBackground: false,
       groupBackground: true,
       defaultSelectAll: true,
@@ -55,6 +56,7 @@ describe("config storage", () => {
         exclude: ["Spotify", "Slack"],
         force: "normal",
         includeFinder: false,
+        includeTrash: false,
         includeBackground: false,
         groupBackground: true,
         defaultSelectAll: true,
@@ -68,6 +70,7 @@ describe("config storage", () => {
     expect(loaded.groupBackground).toBe(true);
     expect(loaded.defaultSelectAll).toBe(true);
     expect(loaded.neverQuitMusic).toBe(false);
+    expect(loaded.includeTrash).toBe(false);
     expect(loaded.musicApps).toEqual(["MyCustomPlayer"]);
   });
 

@@ -62,6 +62,8 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
       options.json = true;
     } else if (arg === "--include-finder") {
       options.includeFinder = true;
+    } else if (arg === "--include-trash") {
+      options.includeTrash = true;
     } else if (arg === "-b" || arg === "--background") {
       options.includeBackground = true;
     } else if (arg === "--never-quit-music") {

@@ -194,6 +194,7 @@ export function isMusicApp(
 export interface FilterOptions {
   exclude?: readonly string[] | undefined;
   includeFinder?: boolean | undefined;
+  includeTrash?: boolean | undefined;
   groupBackground?: boolean | undefined;
   neverQuitMusic?: boolean | undefined;
   musicApps?: readonly string[] | undefined;
@@ -209,6 +210,7 @@ export function filterApps(
 
   const exclude = opts.exclude ?? [];
   const includeFinder = opts.includeFinder ?? false;
+  const includeTrash = opts.includeTrash ?? false;
   const groupBackground = opts.groupBackground ?? true;
   const neverQuitMusic = opts.neverQuitMusic ?? false;
   const customMusicApps = opts.musicApps ?? [];
@@ -226,6 +228,12 @@ export function filterApps(
 
     if (!includeFinder) {
       if (nameLower === "finder" || bundleLower === "com.apple.finder") {
+        continue;
+      }
+    }
+
+    if (!includeTrash) {
+      if (nameLower === "trash" || bundleLower === "com.apple.trash") {
         continue;
       }
     }
@@ -287,12 +295,28 @@ export function filterApps(
     }
   }
 
+  if (
+    includeTrash &&
+    !excludeSet.has("trash") &&
+    !excludeSet.has("com.apple.trash")
+  ) {
+    const hasTrash = result.some(
+      (a) =>
+        a.name.toLowerCase() === "trash" ||
+        a.bundleId?.toLowerCase() === "com.apple.trash",
+    );
+    if (!hasTrash) {
+      result.push({ name: "Trash", bundleId: "com.apple.trash" });
+    }
+  }
+
   return sortApps(result);
 }
 
 export interface GetRunningAppsOptions {
   exclude?: readonly string[];
   includeFinder?: boolean;
+  includeTrash?: boolean;
   includeBackground?: boolean;
   groupBackground?: boolean;
   neverQuitMusic?: boolean;
@@ -318,6 +342,7 @@ export async function getRunningApps(
     filterOpts = {
       exclude: opts.exclude ?? [],
       includeFinder: opts.includeFinder ?? false,
+      includeTrash: opts.includeTrash ?? false,
       groupBackground: opts.groupBackground ?? true,
       neverQuitMusic: opts.neverQuitMusic ?? false,
       musicApps: opts.musicApps ?? [],
@@ -329,6 +354,7 @@ export async function getRunningApps(
     filterOpts = {
       exclude: config.exclude,
       includeFinder: config.includeFinder,
+      includeTrash: config.includeTrash,
       groupBackground: config.groupBackground,
       neverQuitMusic: config.neverQuitMusic,
       musicApps: config.musicApps,
@@ -353,6 +379,7 @@ export async function getRunningAppsForConfig(
     {
       exclude: options.exclude ?? config.exclude,
       includeFinder: options.includeFinder ?? config.includeFinder,
+      includeTrash: options.includeTrash ?? config.includeTrash,
       includeBackground: options.includeBackground ?? config.includeBackground,
       groupBackground: options.groupBackground ?? config.groupBackground,
       neverQuitMusic: options.neverQuitMusic ?? config.neverQuitMusic,
@@ -388,12 +415,26 @@ export async function isAppRunning(
   }
 
   if (typeof target === "object") {
+    if (
+      target.bundleId === "com.apple.trash" ||
+      target.name.toLowerCase() === "trash"
+    ) {
+      return false;
+    }
     if (target.pids && target.pids.length > 0) {
       return target.pids.some((pid) => isProcessAlive(pid));
     }
     if (target.pid !== undefined && target.pid > 0) {
       return isProcessAlive(target.pid);
     }
+  }
+
+  if (
+    typeof target === "string" &&
+    (target.toLowerCase() === "trash" ||
+      target.toLowerCase() === "com.apple.trash")
+  ) {
+    return false;
   }
 
   const name = typeof target === "string" ? target : target.name;

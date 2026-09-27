@@ -368,4 +368,26 @@ describe("apps parser and filters", () => {
       },
     ]);
   });
+
+  it("handles includeTrash option in filterApps and isAppRunning", async () => {
+    const raw: AppInfo[] = [
+      { name: "Slack", bundleId: "com.tinyspeck.slackmacgap" },
+      { name: "Trash", bundleId: "com.apple.trash" },
+    ];
+
+    const withoutTrash = filterApps(raw, { includeTrash: false });
+    expect(withoutTrash).toEqual([
+      { name: "Slack", bundleId: "com.tinyspeck.slackmacgap" },
+    ]);
+
+    const withTrash = filterApps(raw, { includeTrash: true });
+    expect(withTrash).toEqual([
+      { name: "Slack", bundleId: "com.tinyspeck.slackmacgap" },
+      { name: "Trash", bundleId: "com.apple.trash" },
+    ]);
+
+    expect(
+      await isAppRunning({ name: "Trash", bundleId: "com.apple.trash" }),
+    ).toBe(false);
+  });
 });
