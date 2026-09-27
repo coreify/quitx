@@ -41,6 +41,8 @@ const fullConfig = (overrides: Partial<QuitxConfig> = {}): QuitxConfig => ({
   force: "normal",
   includeFinder: false,
   includeBackground: false,
+  groupBackground: true,
+  defaultSelectAll: true,
   ...overrides,
 });
 
@@ -212,6 +214,48 @@ describe("config command", () => {
     expect(removeSpy).toHaveBeenCalledWith(["Spotify"]);
     expect(mockLogSuccess).toHaveBeenCalledWith(
       "Removed 1 apps from exclude list.",
+    );
+  });
+
+  it("toggles default selection to deselect-all", async () => {
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(fullConfig());
+    const saveSpy = vi
+      .spyOn(configModule, "saveConfig")
+      .mockImplementation(() => {});
+
+    mockSelect
+      .mockResolvedValueOnce("default-select")
+      .mockResolvedValueOnce("deselect-all")
+      .mockResolvedValueOnce("exit");
+
+    const code = await configCommand();
+    expect(code).toBe(0);
+    expect(saveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ defaultSelectAll: false }),
+    );
+    expect(mockLogSuccess).toHaveBeenCalledWith(
+      "Default selection: deselect-all",
+    );
+  });
+
+  it("toggles group background instances to disabled", async () => {
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(fullConfig());
+    const saveSpy = vi
+      .spyOn(configModule, "saveConfig")
+      .mockImplementation(() => {});
+
+    mockSelect
+      .mockResolvedValueOnce("group-background")
+      .mockResolvedValueOnce("disabled")
+      .mockResolvedValueOnce("exit");
+
+    const code = await configCommand();
+    expect(code).toBe(0);
+    expect(saveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ groupBackground: false }),
+    );
+    expect(mockLogSuccess).toHaveBeenCalledWith(
+      "Group background instances: disabled",
     );
   });
 

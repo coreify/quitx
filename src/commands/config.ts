@@ -92,6 +92,63 @@ async function toggleIncludeBackground(): Promise<void> {
   );
 }
 
+async function toggleDefaultSelection(): Promise<void> {
+  const config = loadConfig();
+  const currentVal = config.defaultSelectAll ? "select-all" : "deselect-all";
+  const choice = await select({
+    message: `Default App Selection (current: ${currentVal})`,
+    options: [
+      {
+        value: "select-all",
+        label: "Select all apps",
+        hint: "All apps are pre-selected by default when launching quitx.",
+      },
+      {
+        value: "deselect-all",
+        label: "Deselect all apps",
+        hint: "No apps are selected by default. Pick specific apps to quit.",
+      },
+      backOption(),
+    ],
+    initialValue: currentVal,
+  });
+
+  if (isCancel(choice) || choice === BACK_VALUE) return;
+  config.defaultSelectAll = choice === "select-all";
+  saveConfig(config);
+  log.success(
+    `Default selection: ${config.defaultSelectAll ? "select-all" : "deselect-all"}`,
+  );
+}
+
+async function toggleGroupBackground(): Promise<void> {
+  const config = loadConfig();
+  const choice = await select({
+    message: `Group Background Instances (current: ${config.groupBackground ? "enabled" : "disabled"})`,
+    options: [
+      {
+        value: "enabled",
+        label: "Enabled",
+        hint: "Combines multiple instances of the same background app into a single item with instance count.",
+      },
+      {
+        value: "disabled",
+        label: "Disabled",
+        hint: "Lists each background instance separately with its process ID (PID).",
+      },
+      backOption(),
+    ],
+    initialValue: config.groupBackground ? "enabled" : "disabled",
+  });
+
+  if (isCancel(choice) || choice === BACK_VALUE) return;
+  config.groupBackground = choice === "enabled";
+  saveConfig(config);
+  log.success(
+    `Group background instances: ${config.groupBackground ? "enabled" : "disabled"}`,
+  );
+}
+
 async function manageExcludedApps(): Promise<void> {
   const choice = await select({
     message: "Manage excluded apps",
@@ -201,6 +258,16 @@ export async function configCommand(): Promise<number> {
           hint: `current: ${config.force}`,
         },
         {
+          value: "default-select",
+          label: `Toggle Default Selection`,
+          hint: `current: ${config.defaultSelectAll ? "select-all" : "deselect-all"}`,
+        },
+        {
+          value: "group-background",
+          label: `Toggle Group Background Instances`,
+          hint: `current: ${config.groupBackground ? "enabled" : "disabled"}`,
+        },
+        {
           value: "finder",
           label: `Toggle Include Finder`,
           hint: `current: ${config.includeFinder ? "enabled" : "disabled"}`,
@@ -230,6 +297,8 @@ export async function configCommand(): Promise<number> {
     }
 
     if (choice === "quit-mode") await toggleQuitMode();
+    if (choice === "default-select") await toggleDefaultSelection();
+    if (choice === "group-background") await toggleGroupBackground();
     if (choice === "finder") await toggleIncludeFinder();
     if (choice === "background") await toggleIncludeBackground();
     if (choice === "exclude") await manageExcludedApps();

@@ -16,7 +16,8 @@ function run() {
     const name = app.localizedName ? app.localizedName.js : '';
     const bundleId = app.bundleIdentifier ? app.bundleIdentifier.js : '';
     const pid = String(app.processIdentifier);
-    lines.push(name + '\\t' + bundleId + '\\t' + pid);
+    const isBg = app.activationPolicy !== Regular ? '1' : '0';
+    lines.push(name + '\\t' + bundleId + '\\t' + pid + '\\t' + isBg);
   }
   return lines.join('\\n');
 }`.trim();
@@ -76,12 +77,20 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
           ? pidNum
           : undefined;
 
+      const rawIsBg = parts[3]?.trim();
+      const isBackground = rawIsBg === "1";
+
       let name = rawName;
       if (bundleId && rawName === bundleId) {
         name = formatDynamicName(bundleId);
       }
 
-      results.push({ name, bundleId, pid });
+      results.push({
+        name,
+        bundleId,
+        pid,
+        ...(isBackground ? { isBackground: true } : {}),
+      });
     }
 
     return results;
@@ -103,6 +112,7 @@ export function sortApps(apps: readonly AppInfo[]): AppInfo[] {
 export interface FilterOptions {
   exclude?: readonly string[] | undefined;
   includeFinder?: boolean | undefined;
+  groupBackground?: boolean | undefined;
 }
 
 export function filterApps(
@@ -115,10 +125,10 @@ export function filterApps(
 
   const exclude = opts.exclude ?? [];
   const includeFinder = opts.includeFinder ?? false;
+  const groupBackground = opts.groupBackground ?? true;
 
-  const seen = new Set<string>();
   const excludeSet = new Set(exclude.map((e) => e.toLowerCase().trim()));
-  const filtered: AppInfo[] = [];
+  const eligible: AppInfo[] = [];
 
   for (const app of apps) {
     const nameLower = app.name.toLowerCase().trim();
@@ -141,22 +151,50 @@ export function filterApps(
       continue;
     }
 
-    const key = bundleLower ?? nameLower;
-    if (seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-
-    filtered.push(app);
+    eligible.push(app);
   }
 
-  return sortApps(filtered);
+  const result: AppInfo[] = [];
+  const grouped = new Map<string, AppInfo>();
+
+  for (const app of eligible) {
+    const nameLower = app.name.toLowerCase().trim();
+    const bundleLower = app.bundleId?.toLowerCase().trim();
+    const isBg = app.isBackground === true;
+
+    if (isBg && !groupBackground) {
+      result.push({ ...app });
+    } else {
+      const key = bundleLower ?? nameLower;
+      const existing = grouped.get(key);
+      if (existing) {
+        if (app.pid) {
+          if (!existing.pids) {
+            existing.pids = existing.pid ? [existing.pid] : [];
+          }
+          if (!existing.pids.includes(app.pid)) {
+            existing.pids.push(app.pid);
+          }
+          existing.count = existing.pids.length;
+        } else {
+          existing.count = (existing.count ?? 1) + 1;
+        }
+      } else {
+        const item: AppInfo = { ...app };
+        grouped.set(key, item);
+        result.push(item);
+      }
+    }
+  }
+
+  return sortApps(result);
 }
 
 export interface GetRunningAppsOptions {
   exclude?: readonly string[];
   includeFinder?: boolean;
   includeBackground?: boolean;
+  groupBackground?: boolean;
 }
 
 export async function getRunningApps(
@@ -177,6 +215,7 @@ export async function getRunningApps(
     filterOpts = {
       exclude: opts.exclude ?? [],
       includeFinder: opts.includeFinder ?? false,
+      groupBackground: opts.groupBackground ?? true,
     };
     includeBackground = opts.includeBackground ?? false;
     exec = executor;
@@ -216,12 +255,13 @@ export async function isAppRunning(
     return isProcessAlive(target);
   }
 
-  if (
-    typeof target === "object" &&
-    target.pid !== undefined &&
-    target.pid > 0
-  ) {
-    return isProcessAlive(target.pid);
+  if (typeof target === "object") {
+    if (target.pids && target.pids.length > 0) {
+      return target.pids.some((pid) => isProcessAlive(pid));
+    }
+    if (target.pid !== undefined && target.pid > 0) {
+      return isProcessAlive(target.pid);
+    }
   }
 
   const name = typeof target === "string" ? target : target.name;

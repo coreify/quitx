@@ -1,4 +1,3 @@
-import { MultiSelectPrompt } from "@clack/core";
 import { confirm, isCancel, multiselect } from "@clack/prompts";
 import type { AppInfo } from "../types";
 
@@ -104,85 +103,61 @@ export function attachQuitAllBehavior(prompt: {
   };
 }
 
+export interface SelectAppsOptions {
+  defaultSelectAll?: boolean;
+}
+
 export async function selectApps(
   apps: readonly AppInfo[],
+  options: SelectAppsOptions = {},
 ): Promise<AppInfo[] | symbol> {
   if (apps.length === 0) {
     return [];
   }
 
-  const appOptions: SelectorOption[] = apps.map((app) => {
-    const hint = app.bundleId ?? (app.pid ? `PID: ${app.pid}` : undefined);
+  const bundleCounts = new Map<string, number>();
+  for (const app of apps) {
+    const k = app.bundleId ?? app.name;
+    bundleCounts.set(k, (bundleCounts.get(k) ?? 0) + 1);
+  }
+
+  const appOptions: SelectorOption[] = apps.map((app, index) => {
+    let hint = app.bundleId ?? (app.pid ? `PID: ${app.pid}` : undefined);
+    if (app.count && app.count > 1) {
+      hint = app.bundleId
+        ? `${app.bundleId} (${app.count} instances)`
+        : `${app.count} instances`;
+    } else if (app.pid && app.isBackground) {
+      hint = app.bundleId
+        ? `${app.bundleId} (PID: ${app.pid})`
+        : `PID: ${app.pid}`;
+    }
+
+    const base = app.bundleId ?? app.name;
+    const isDup = (bundleCounts.get(base) ?? 0) > 1;
+    const value =
+      isDup && app.pid
+        ? `${base}:${app.pid}`
+        : (app.bundleId ?? `${app.name}-${app.pid ?? index}`);
+
     return {
-      value: app.bundleId ?? `${app.name}-${app.pid ?? 0}`,
+      value,
       label: app.name,
       ...(hint ? { hint } : {}),
     };
   });
 
-  const options: SelectorOption[] = [
-    {
-      value: SELECT_ALL_VALUE,
-      label: "Quit all apps",
-      hint: `${apps.length} eligible apps`,
-    },
-    ...appOptions,
-  ];
+  const defaultSelectAll = options.defaultSelectAll ?? true;
+  const initialValues = defaultSelectAll
+    ? appOptions.map((opt) => opt.value)
+    : [];
 
-  const initialValues = [SELECT_ALL_VALUE];
-
-  const proto = MultiSelectPrompt?.prototype as unknown as
-    | {
-        prompt?: () => Promise<unknown>;
-        toggleValue?: () => void;
-        toggleAll?: () => void;
-        _value?: string;
-        value?: string[];
-        cursor?: number;
-      }
-    | undefined;
-
-  const origPrompt = proto?.prompt;
-  const origToggleValue = proto?.toggleValue;
-  const origToggleAll = proto?.toggleAll;
-  const origToggleInvert = (proto as { toggleInvert?: () => void } | undefined)
-    ?.toggleInvert;
-
-  let selected: string[] | symbol;
-  try {
-    if (proto && origPrompt) {
-      proto.prompt = function (this: {
-        options?: SelectorOption[];
-        value?: string[];
-        cursor?: number;
-        _value?: string;
-        toggleValue?: () => void;
-        toggleAll?: () => void;
-        toggleInvert?: () => void;
-      }) {
-        if (this.options?.some((o) => o.value === SELECT_ALL_VALUE)) {
-          attachQuitAllBehavior(
-            this as Parameters<typeof attachQuitAllBehavior>[0],
-          );
-        }
-        return origPrompt.call(this);
-      };
-    }
-
-    selected = await multiselect({
-      message: "Select apps to quit",
-      options,
-      required: false,
-      initialValues,
-    });
-  } finally {
-    if (proto && origPrompt) proto.prompt = origPrompt;
-    if (proto && origToggleValue) proto.toggleValue = origToggleValue;
-    if (proto && origToggleAll) proto.toggleAll = origToggleAll;
-    if (proto && origToggleInvert) {
-      (proto as { toggleInvert?: () => void }).toggleInvert = origToggleInvert;
-    }
-  }
+  const selected = await multiselect({
+    message: "Select apps to quit",
+    options: appOptions,
+    required: false,
+    initialValues,
+  });
 
   if (isCancel(selected) || !Array.isArray(selected)) {
     return selected;
@@ -198,9 +173,14 @@ export async function selectApps(
   }
 
   const selectedSet = new Set(selectedArray);
-  return apps.filter((app) => {
-    const key = app.bundleId ?? `${app.name}-${app.pid ?? 0}`;
-    return selectedSet.has(key);
+  return apps.filter((app, index) => {
+    const optValue = appOptions[index]?.value;
+    const key = app.bundleId ?? `${app.name}-${app.pid ?? index}`;
+    return (
+      (optValue && selectedSet.has(optValue)) ||
+      (app.bundleId && selectedSet.has(app.bundleId)) ||
+      selectedSet.has(key)
+    );
   });
 }
 

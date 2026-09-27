@@ -15,11 +15,11 @@ const bid = app.bundleIdentifier ? app.bundleIdentifier.js : '';
 const nm = app.localizedName ? app.localizedName.js : '';
 const appPid = app.processIdentifier;
 
-if (
-  (targetPid && appPid === targetPid) ||
-  (bundleId && bid === bundleId) ||
-  (name && nm.toLowerCase() === name.toLowerCase())
-) {
+const matches = targetPid
+  ? appPid === targetPid
+  : ((bundleId && bid === bundleId) || (name && nm.toLowerCase() === name.toLowerCase()));
+
+if (matches) {
   const res = typeof app.terminate === 'function' ? app.terminate() : app.terminate;
   return String(res);
 }
@@ -37,10 +37,12 @@ export function defaultDeferredQuitScheduler(
 ): void {
   try {
     const bundleId = app.bundleId ?? "";
+    const pids =
+      app.pids && app.pids.length > 0 ? app.pids : app.pid ? [app.pid] : [];
     const pidArg = app.pid ? ` ${shellQuote(String(app.pid))}` : "";
     const cmd =
-      force && app.pid
-        ? `sleep 0.4 && kill -9 ${app.pid}`
+      force && pids.length > 0
+        ? `sleep 0.4 && kill -9 ${pids.join(" ")}`
         : `sleep 0.4 && osascript -l JavaScript -e ${shellQuote(QUIT_JXA_SCRIPT)} ${shellQuote(bundleId)} ${shellQuote(app.name)}${pidArg}`;
     const child = spawn("sh", ["-c", cmd], {
       detached: true,
@@ -56,6 +58,25 @@ export async function sendQuitSignal(
   app: AppInfo,
   executor?: ScriptExecutor,
 ): Promise<void> {
+  if (app.pids && app.pids.length > 1) {
+    let anyQuit = false;
+    for (const pid of app.pids) {
+      const args = [app.bundleId ?? "", app.name, String(pid)];
+      try {
+        const res = await runJXA(QUIT_JXA_SCRIPT, args, executor);
+        if (res.trim().toLowerCase() === "true") {
+          anyQuit = true;
+        }
+      } catch {
+        // Continue trying other pids
+      }
+    }
+    if (!anyQuit) {
+      throw new Error(`Could not quit "${app.name}"`);
+    }
+    return;
+  }
+
   const args = [app.bundleId ?? "", app.name];
   if (app.pid && app.pid > 0) {
     args.push(String(app.pid));
@@ -67,6 +88,18 @@ export async function sendQuitSignal(
 }
 
 export function forceQuitApp(app: AppInfo): boolean {
+  if (app.pids && app.pids.length > 0) {
+    let anyKilled = false;
+    for (const pid of app.pids) {
+      try {
+        process.kill(pid, "SIGKILL");
+        anyKilled = true;
+      } catch {
+        // Ignore
+      }
+    }
+    return anyKilled;
+  }
   if (app.pid && app.pid > 0) {
     try {
       process.kill(app.pid, "SIGKILL");
@@ -99,7 +132,7 @@ export async function quitApp(
       error instanceof Error ? error.message : "Failed to send quit event";
 
     // If force is requested and normal quit errored, attempt force quit immediately
-    if (options.force && app.pid) {
+    if (options.force && (app.pid || (app.pids && app.pids.length > 0))) {
       forceQuitApp(app);
       await sleep(100);
       const aliveAfterForce = await isAppRunning(app, executor);

@@ -2,6 +2,9 @@ export interface AppInfo {
   name: string;
   bundleId?: string | undefined;
   pid?: number | undefined;
+  pids?: number[] | undefined;
+  count?: number | undefined;
+  isBackground?: boolean | undefined;
 }
 
 export interface QuitResult {
@@ -16,6 +19,8 @@ export interface QuitxConfig {
   force: "normal" | "force";
   includeFinder: boolean;
   includeBackground: boolean;
+  groupBackground: boolean;
+  defaultSelectAll: boolean;
 }
 
 export interface CliOptions {

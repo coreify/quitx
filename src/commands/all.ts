@@ -27,6 +27,7 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
     exclude: config.exclude,
     includeFinder,
     includeBackground,
+    groupBackground: config.groupBackground,
   });
 
   if (apps.length === 0) {

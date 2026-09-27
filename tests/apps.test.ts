@@ -219,4 +219,63 @@ describe("apps parser and filters", () => {
     const mockExecutorFalse = vi.fn().mockResolvedValue({ stdout: "false" });
     expect(await isAppRunning("GhostApp", mockExecutorFalse)).toBe(false);
   });
+
+  it("groups background app instances when groupBackground is true", () => {
+    const raw: AppInfo[] = [
+      {
+        name: "QuickLook",
+        bundleId: "com.apple.quicklook",
+        pid: 101,
+        isBackground: true,
+      },
+      {
+        name: "QuickLook",
+        bundleId: "com.apple.quicklook",
+        pid: 102,
+        isBackground: true,
+      },
+    ];
+
+    const result = filterApps(raw, { groupBackground: true });
+    expect(result).toHaveLength(1);
+    expect(result[0]?.name).toBe("QuickLook");
+    expect(result[0]?.count).toBe(2);
+    expect(result[0]?.pids).toEqual([101, 102]);
+  });
+
+  it("lists background app instances separately when groupBackground is false", () => {
+    const raw: AppInfo[] = [
+      {
+        name: "QuickLook",
+        bundleId: "com.apple.quicklook",
+        pid: 101,
+        isBackground: true,
+      },
+      {
+        name: "QuickLook",
+        bundleId: "com.apple.quicklook",
+        pid: 102,
+        isBackground: true,
+      },
+    ];
+
+    const result = filterApps(raw, { groupBackground: false });
+    expect(result).toHaveLength(2);
+    expect(result[0]?.pid).toBe(101);
+    expect(result[1]?.pid).toBe(102);
+  });
+
+  it("isAppRunning checks any alive PID when target has pids array", async () => {
+    const appWithMultiPids: AppInfo = {
+      name: "MultiProc",
+      pids: [9999999, process.pid],
+    };
+    expect(await isAppRunning(appWithMultiPids)).toBe(true);
+
+    const appWithDeadPids: AppInfo = {
+      name: "DeadProc",
+      pids: [9999998, 9999999],
+    };
+    expect(await isAppRunning(appWithDeadPids)).toBe(false);
+  });
 });

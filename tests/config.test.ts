@@ -40,6 +40,8 @@ describe("config storage", () => {
       force: "normal",
       includeFinder: false,
       includeBackground: false,
+      groupBackground: true,
+      defaultSelectAll: true,
     });
   });
 
@@ -50,11 +52,15 @@ describe("config storage", () => {
         force: "normal",
         includeFinder: false,
         includeBackground: false,
+        groupBackground: true,
+        defaultSelectAll: true,
       },
       TEST_FILE,
     );
     const loaded = loadConfig(TEST_FILE);
     expect(loaded.exclude).toEqual(["Spotify", "Slack"]);
+    expect(loaded.groupBackground).toBe(true);
+    expect(loaded.defaultSelectAll).toBe(true);
   });
 
   it("adds excluded apps without duplicates", () => {

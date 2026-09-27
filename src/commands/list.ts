@@ -13,6 +13,7 @@ export async function listCommand(options: CliOptions = {}): Promise<number> {
     exclude: config.exclude,
     includeFinder,
     includeBackground,
+    groupBackground: config.groupBackground,
   });
 
   renderList(apps, options.json);

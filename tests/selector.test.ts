@@ -34,23 +34,69 @@ describe("selector ui", () => {
     expect(mockMultiselect).not.toHaveBeenCalled();
   });
 
-  it("selectApps pre-selects only Quit all apps option and keeps apps visible without strikethrough", async () => {
+  it("selectApps does not contain Quit all apps option and pre-selects all apps by default", async () => {
     const apps: AppInfo[] = [
       { name: "Arc", bundleId: "com.arc" },
       { name: "Spotify", bundleId: "com.spotify" },
     ];
-    mockMultiselect.mockResolvedValue([SELECT_ALL_VALUE]);
+    mockMultiselect.mockResolvedValue(["com.arc", "com.spotify"]);
 
     await selectApps(apps);
     const lastCall = mockMultiselect.mock.calls[0];
     const callArgs = (lastCall ? lastCall[0] : {}) as {
-      options: { value: string; disabled?: boolean }[];
+      options: { value: string; label: string; hint?: string }[];
       initialValues: string[];
     };
-    expect(callArgs.initialValues).toEqual([SELECT_ALL_VALUE]);
-    for (const opt of callArgs.options) {
-      expect(opt.disabled).toBeUndefined();
-    }
+    expect(callArgs.initialValues).toEqual(["com.arc", "com.spotify"]);
+    expect(callArgs.options.some((o) => o.value === SELECT_ALL_VALUE)).toBe(
+      false,
+    );
+    expect(callArgs.options.map((o) => o.value)).toEqual([
+      "com.arc",
+      "com.spotify",
+    ]);
+  });
+
+  it("selectApps respects defaultSelectAll: false by providing empty initialValues", async () => {
+    const apps: AppInfo[] = [
+      { name: "Arc", bundleId: "com.arc" },
+      { name: "Spotify", bundleId: "com.spotify" },
+    ];
+    mockMultiselect.mockResolvedValue(["com.spotify"]);
+
+    await selectApps(apps, { defaultSelectAll: false });
+    const lastCall = mockMultiselect.mock.calls[0];
+    const callArgs = (lastCall ? lastCall[0] : {}) as {
+      options: { value: string }[];
+      initialValues: string[];
+    };
+    expect(callArgs.initialValues).toEqual([]);
+  });
+
+  it("selectApps formats hints for grouped instances and background PIDs", async () => {
+    const apps: AppInfo[] = [
+      {
+        name: "Helper",
+        bundleId: "com.helper",
+        count: 3,
+        pids: [1, 2, 3],
+        isBackground: true,
+      },
+      {
+        name: "Daemon",
+        pid: 99,
+        isBackground: true,
+      },
+    ];
+    mockMultiselect.mockResolvedValue(["com.helper"]);
+
+    await selectApps(apps);
+    const lastCall = mockMultiselect.mock.calls[0];
+    const callArgs = (lastCall ? lastCall[0] : {}) as {
+      options: { value: string; label: string; hint?: string }[];
+    };
+    expect(callArgs.options[0]?.hint).toBe("com.helper (3 instances)");
+    expect(callArgs.options[1]?.hint).toBe("PID: 99");
   });
 
   it("selectApps returns selected apps from multiselect", async () => {

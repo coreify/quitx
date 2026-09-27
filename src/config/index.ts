@@ -11,6 +11,8 @@ export const DEFAULT_CONFIG: QuitxConfig = {
   force: "normal",
   includeFinder: false,
   includeBackground: false,
+  groupBackground: true,
+  defaultSelectAll: true,
 };
 
 export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
@@ -25,6 +27,24 @@ export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
     }
 
     const obj = parsed as Record<string, unknown>;
+    const defaultSelectVal =
+      typeof obj.defaultSelectAll === "boolean"
+        ? obj.defaultSelectAll
+        : obj.defaultSelect === "deselect-all" ||
+            obj.defaultSelection === "deselect-all" ||
+            obj.defaultSelect === false
+          ? false
+          : typeof obj.defaultSelect === "boolean"
+            ? obj.defaultSelect
+            : DEFAULT_CONFIG.defaultSelectAll;
+
+    const groupBgVal =
+      typeof obj.groupBackground === "boolean"
+        ? obj.groupBackground
+        : typeof obj.groupBackgroundInstances === "boolean"
+          ? obj.groupBackgroundInstances
+          : DEFAULT_CONFIG.groupBackground;
+
     return {
       exclude: Array.isArray(obj.exclude) ? (obj.exclude as string[]) : [],
       force:
@@ -39,6 +59,8 @@ export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
         typeof obj.includeBackground === "boolean"
           ? obj.includeBackground
           : DEFAULT_CONFIG.includeBackground,
+      groupBackground: groupBgVal,
+      defaultSelectAll: defaultSelectVal,
     };
   } catch {
     return { ...DEFAULT_CONFIG, exclude: [] };

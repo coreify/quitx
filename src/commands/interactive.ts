@@ -34,6 +34,7 @@ export async function interactiveCommand(
     exclude: config.exclude,
     includeFinder,
     includeBackground,
+    groupBackground: config.groupBackground,
   });
 
   if (!options.json) {
@@ -79,7 +80,9 @@ export async function interactiveCommand(
       return 0;
     }
   } else {
-    const selected = await selectApps(apps);
+    const selected = await selectApps(apps, {
+      defaultSelectAll: config.defaultSelectAll,
+    });
     if (typeof selected === "symbol" || isCancel(selected)) {
       showCancel("Cancelled.");
       printThanks(options);
@@ -96,11 +99,7 @@ export async function interactiveCommand(
   }
 
   if (!options.yes) {
-    const confirmation = await shouldConfirmQuit(
-      targetApps.length,
-      targetApps.length === apps.length,
-      false,
-    );
+    const confirmation = await shouldConfirmQuit(targetApps.length, false);
     if (isCancel(confirmation) || confirmation !== true) {
       showCancel("Cancelled.");
       printThanks(options);
