@@ -111,7 +111,7 @@ export function forceQuitApp(app: AppInfo): boolean {
   return false;
 }
 
-export const DEFAULT_QUIT_TIMEOUT_MS = 5000;
+export const DEFAULT_QUIT_TIMEOUT_MS = 8000;
 
 export async function quitApp(
   app: AppInfo,
