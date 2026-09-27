@@ -49,19 +49,21 @@ OPTIONS:
   -y, --yes               Skip confirmation prompts
   -l, --list              List running GUI apps and exit
   -f, --force             Force quit apps (SIGKILL) if normal quit fails
+      --exclude <apps>    Add apps to persistent exclude list (comma-separated)
       --json              Output data in JSON format
-      --include-finder    Include Finder in app list
-      --include-terminal  Include current terminal in app list
-      --exclude <app>     Exclude specific apps by name or bundle ID
   -h, --help              Show help information
   -v, --version           Show version number
+
+COMMANDS:
+  exclude                 Manage excluded applications interactively
 
 EXAMPLES:
   $ quitx                         Interactive app selector
   $ quitx --all                   Quit all running apps (with confirmation)
   $ quitx --all --yes             Quit all running apps immediately
   $ quitx --list                  List currently running GUI apps
-  $ quitx --exclude Spotify       Launch selector excluding Spotify
+  $ quitx exclude                 Open interactive menu to manage excluded apps
+  $ quitx --exclude Spotify,Slack Add Spotify and Slack to exclude list
   $ quitx Slack Discord           Quit specific apps directly
 `.trim(),
   );

@@ -1,4 +1,5 @@
 import { isCancel, log, spinner } from "@clack/prompts";
+import { loadConfig } from "../config";
 import { getRunningApps } from "../macos/apps";
 import { quitApps } from "../macos/quit";
 import type { AppInfo, CliOptions } from "../types";
@@ -23,11 +24,8 @@ export async function interactiveCommand(
     s.start("Scanning running applications...");
   }
 
-  const apps = await getRunningApps({
-    includeFinder: options.includeFinder,
-    includeTerminal: options.includeTerminal,
-    exclude: options.exclude,
-  });
+  const config = loadConfig();
+  const apps = await getRunningApps(config.exclude);
 
   if (!options.json) {
     s.stop(

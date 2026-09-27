@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getCurrentTerminalApp, isTerminalApp } from "../src/macos/terminal";
+import {
+  getCurrentTerminalApp,
+  isCurrentTerminalApp,
+  isTerminalApp,
+} from "../src/macos/terminal";
 import type { AppInfo } from "../src/types";
 
 describe("terminal detection", () => {
@@ -99,5 +103,20 @@ describe("terminal detection", () => {
       pid: 6789,
     };
     expect(isTerminalApp(spotify)).toBe(false);
+  });
+
+  it("isCurrentTerminalApp identifies when app matches current terminal env", () => {
+    const iterm: AppInfo = {
+      name: "iTerm2",
+      bundleId: "com.googlecode.iterm2",
+      pid: 1234,
+    };
+    expect(isCurrentTerminalApp(iterm, { TERM_PROGRAM: "iTerm.app" })).toBe(
+      true,
+    );
+    expect(
+      isCurrentTerminalApp(iterm, { TERM_PROGRAM: "Apple_Terminal" }),
+    ).toBe(false);
+    expect(isCurrentTerminalApp(iterm, {})).toBe(false);
   });
 });

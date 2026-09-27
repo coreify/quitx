@@ -1,7 +1,31 @@
+import { spawn } from "node:child_process";
 import type { AppInfo, QuitOptions, QuitResult } from "../types";
 import { sleep } from "../utils/sleep";
 import { runAppleScript, type ScriptExecutor } from "./applescript";
 import { isAppRunning } from "./apps";
+import { isCurrentTerminalApp } from "./terminal";
+
+export type DeferredQuitScheduler = (app: AppInfo, force: boolean) => void;
+
+export function defaultDeferredQuitScheduler(
+  app: AppInfo,
+  force = false,
+): void {
+  try {
+    const script = getQuitScript(app);
+    const cmd =
+      force && app.pid
+        ? `sleep 0.4 && kill -9 ${app.pid}`
+        : `sleep 0.4 && osascript -e '${script.replace(/'/g, "'\\''")}'`;
+    const child = spawn("sh", ["-c", cmd], {
+      detached: true,
+      stdio: "ignore",
+    });
+    child.unref();
+  } catch {
+    // Ignore error
+  }
+}
 
 export function getQuitScript(app: AppInfo): string {
   if (app.bundleId) {
@@ -48,7 +72,13 @@ export async function quitApp(
   app: AppInfo,
   options: QuitOptions = {},
   executor?: ScriptExecutor,
+  deferredScheduler: DeferredQuitScheduler = defaultDeferredQuitScheduler,
 ): Promise<QuitResult> {
+  if (isCurrentTerminalApp(app)) {
+    deferredScheduler(app, options.force ?? false);
+    return { app, success: true, forced: options.force ?? false };
+  }
+
   const timeoutMs = options.timeoutMs ?? 600;
 
   try {
@@ -111,49 +141,75 @@ export async function quitApps(
   apps: readonly AppInfo[],
   options: QuitOptions = {},
   executor?: ScriptExecutor,
+  deferredScheduler: DeferredQuitScheduler = defaultDeferredQuitScheduler,
 ): Promise<QuitResult[]> {
   if (apps.length === 0) {
     return [];
   }
 
-  const timeoutMs = options.timeoutMs ?? 700;
+  const currentTerminalApps: AppInfo[] = [];
+  const otherApps: AppInfo[] = [];
 
-  await Promise.allSettled(apps.map((app) => sendQuitSignal(app, executor)));
-
-  await sleep(timeoutMs);
+  for (const app of apps) {
+    if (isCurrentTerminalApp(app)) {
+      currentTerminalApps.push(app);
+    } else {
+      otherApps.push(app);
+    }
+  }
 
   const results: QuitResult[] = [];
-  for (const app of apps) {
-    const stillRunning = await isAppRunning(app, executor);
-    if (!stillRunning) {
-      results.push({ app, success: true, forced: false });
-      continue;
-    }
 
-    if (options.force) {
-      const killed = forceQuitApp(app);
-      if (killed) {
-        await sleep(100);
-        const aliveAfterForce = await isAppRunning(app, executor);
-        if (!aliveAfterForce) {
-          results.push({ app, success: true, forced: true });
-          continue;
-        }
+  if (otherApps.length > 0) {
+    const timeoutMs = options.timeoutMs ?? 700;
+
+    await Promise.allSettled(
+      otherApps.map((app) => sendQuitSignal(app, executor)),
+    );
+
+    await sleep(timeoutMs);
+
+    for (const app of otherApps) {
+      const stillRunning = await isAppRunning(app, executor);
+      if (!stillRunning) {
+        results.push({ app, success: true, forced: false });
+        continue;
       }
+
+      if (options.force) {
+        const killed = forceQuitApp(app);
+        if (killed) {
+          await sleep(100);
+          const aliveAfterForce = await isAppRunning(app, executor);
+          if (!aliveAfterForce) {
+            results.push({ app, success: true, forced: true });
+            continue;
+          }
+        }
+        results.push({
+          app,
+          success: false,
+          forced: true,
+          error: "App remained running after force quit",
+        });
+        continue;
+      }
+
       results.push({
         app,
         success: false,
-        forced: true,
-        error: "App remained running after force quit",
+        forced: false,
+        error: "App is still running (may have unsaved changes or prompt)",
       });
-      continue;
     }
+  }
 
+  for (const termApp of currentTerminalApps) {
+    deferredScheduler(termApp, options.force ?? false);
     results.push({
-      app,
-      success: false,
-      forced: false,
-      error: "App is still running (may have unsaved changes or prompt)",
+      app: termApp,
+      success: true,
+      forced: options.force ?? false,
     });
   }
 

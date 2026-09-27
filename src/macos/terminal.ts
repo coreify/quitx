@@ -128,3 +128,33 @@ export function isTerminalApp(
 
   return false;
 }
+
+export function isCurrentTerminalApp(
+  app: AppInfo,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  const current = getCurrentTerminalApp(env);
+  if (!current) {
+    return false;
+  }
+  const curLower = current.toLowerCase();
+  const appNameLower = app.name.toLowerCase();
+  const appBundleLower = app.bundleId?.toLowerCase();
+
+  if (appNameLower === curLower) {
+    return true;
+  }
+
+  for (const term of KNOWN_TERMINALS) {
+    if (term.name.toLowerCase() === curLower) {
+      if (
+        appNameLower === term.name.toLowerCase() ||
+        (appBundleLower && term.bundleIds.includes(appBundleLower))
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}

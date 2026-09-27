@@ -1,4 +1,5 @@
 import { isCancel, spinner } from "@clack/prompts";
+import { loadConfig } from "../config";
 import { getRunningApps } from "../macos/apps";
 import { quitApps } from "../macos/quit";
 import type { CliOptions } from "../types";
@@ -16,11 +17,8 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
     showIntro();
   }
 
-  const apps = await getRunningApps({
-    includeFinder: options.includeFinder,
-    includeTerminal: options.includeTerminal,
-    exclude: options.exclude,
-  });
+  const config = loadConfig();
+  const apps = await getRunningApps(config.exclude);
 
   if (apps.length === 0) {
     if (options.json) {

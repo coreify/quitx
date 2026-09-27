@@ -13,11 +13,9 @@ describe("cli parser and dispatcher", () => {
       "-l",
       "-f",
       "--json",
-      "--include-finder",
-      "--include-terminal",
       "--exclude",
-      "Slack",
-      "--exclude=Discord",
+      "Slack,Discord",
+      "--exclude=Chrome",
       "Spotify",
       "Notes",
     ]);
@@ -27,10 +25,12 @@ describe("cli parser and dispatcher", () => {
     expect(opts.list).toBe(true);
     expect(opts.force).toBe(true);
     expect(opts.json).toBe(true);
-    expect(opts.includeFinder).toBe(true);
-    expect(opts.includeTerminal).toBe(true);
-    expect(opts.exclude).toEqual(["Slack", "Discord"]);
+    expect(opts.exclude).toEqual(["Slack", "Discord", "Chrome"]);
     expect(opts.apps).toEqual(["Spotify", "Notes"]);
+
+    const optsExcludeCmd = parseCliArgs(["exclude", "Warp,Ghostty"]);
+    expect(optsExcludeCmd.manageExclude).toBe(true);
+    expect(optsExcludeCmd.exclude).toEqual(["Warp", "Ghostty"]);
   });
 
   it("handles help and version flags", async () => {
@@ -69,6 +69,27 @@ describe("cli parser and dispatcher", () => {
     expect(allSpy).toHaveBeenCalledWith(expect.objectContaining({ all: true }));
 
     allSpy.mockRestore();
+  });
+
+  it("dispatches to exclude command when exclude or --exclude passed", async () => {
+    const excludeModule = await import("../src/commands/exclude");
+    const excludeSpy = vi
+      .spyOn(excludeModule, "excludeCommand")
+      .mockResolvedValue(0);
+
+    const code1 = await main(["exclude"]);
+    expect(code1).toBe(0);
+    expect(excludeSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ manageExclude: true }),
+    );
+
+    const code2 = await main(["--exclude", "Discord"]);
+    expect(code2).toBe(0);
+    expect(excludeSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ exclude: ["Discord"] }),
+    );
+
+    excludeSpy.mockRestore();
   });
 
   it("dispatches to interactive command by default", async () => {

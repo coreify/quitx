@@ -264,4 +264,94 @@ describe("quit service", () => {
   it("quitApps returns empty array if no apps passed", async () => {
     expect(await quitApps([])).toEqual([]);
   });
+
+  it("quitApps quits other apps first and defers current terminal app", async () => {
+    const origTerm = process.env["TERM_PROGRAM"];
+    process.env["TERM_PROGRAM"] = "Apple_Terminal";
+
+    try {
+      const callOrder: string[] = [];
+      const mockExecutor: ScriptExecutor = vi
+        .fn()
+        .mockImplementation((_cmd: string, args: readonly string[]) => {
+          const script = args[1] ?? "";
+          if (script.includes("Chrome")) {
+            callOrder.push("Chrome");
+          }
+          return Promise.resolve({ stdout: "false" });
+        });
+
+      const deferredCalls: { app: AppInfo; force: boolean }[] = [];
+      const mockDeferred = (app: AppInfo, force: boolean) => {
+        callOrder.push(app.name);
+        deferredCalls.push({ app, force });
+      };
+
+      const terminalApp: AppInfo = {
+        name: "Terminal",
+        bundleId: "com.apple.terminal",
+        pid: 1234,
+      };
+      const chromeApp: AppInfo = {
+        name: "Google Chrome",
+        bundleId: "com.google.Chrome",
+        pid: 2345,
+      };
+
+      const results = await quitApps(
+        [terminalApp, chromeApp],
+        { timeoutMs: 1 },
+        mockExecutor,
+        mockDeferred,
+      );
+
+      expect(callOrder).toEqual(["Chrome", "Terminal"]);
+      expect(deferredCalls).toHaveLength(1);
+      expect(deferredCalls[0]?.app.name).toBe("Terminal");
+      expect(results).toHaveLength(2);
+      expect(results.every((r) => r.success)).toBe(true);
+    } finally {
+      if (origTerm === undefined) {
+        delete process.env["TERM_PROGRAM"];
+      } else {
+        process.env["TERM_PROGRAM"] = origTerm;
+      }
+    }
+  });
+
+  it("quitApp defers current terminal app immediately", async () => {
+    const origTerm = process.env["TERM_PROGRAM"];
+    process.env["TERM_PROGRAM"] = "Apple_Terminal";
+
+    try {
+      const deferredCalls: { app: AppInfo; force: boolean }[] = [];
+      const mockDeferred = (app: AppInfo, force: boolean) => {
+        deferredCalls.push({ app, force });
+      };
+
+      const terminalApp: AppInfo = {
+        name: "Terminal",
+        bundleId: "com.apple.terminal",
+        pid: 1234,
+      };
+
+      const res = await quitApp(
+        terminalApp,
+        { force: true },
+        undefined,
+        mockDeferred,
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.forced).toBe(true);
+      expect(deferredCalls).toHaveLength(1);
+      expect(deferredCalls[0]?.force).toBe(true);
+    } finally {
+      if (origTerm === undefined) {
+        delete process.env["TERM_PROGRAM"];
+      } else {
+        process.env["TERM_PROGRAM"] = origTerm;
+      }
+    }
+  });
 });

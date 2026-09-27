@@ -1,4 +1,5 @@
 export * from "./types";
+export * from "./config";
 export * from "./macos/apps";
 export * from "./macos/applescript";
 export * from "./macos/quit";
@@ -10,4 +11,5 @@ export * from "./utils/sleep";
 export { allCommand } from "./commands/all";
 export { interactiveCommand } from "./commands/interactive";
 export { listCommand } from "./commands/list";
+export { excludeCommand, manageExcludeInteractive } from "./commands/exclude";
 export { parseCliArgs, main } from "./cli";

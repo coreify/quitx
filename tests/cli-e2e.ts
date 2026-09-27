@@ -12,7 +12,8 @@ async function runCliE2E() {
 
   const help = await execFileAsync(process.execPath, [cli, "--help"]);
   assert.ok(help.stdout.includes("quitx [options]"));
-  assert.ok(help.stdout.includes("--include-finder"));
+  assert.ok(help.stdout.includes("--exclude"));
+  assert.ok(help.stdout.includes("exclude"));
 
   const list = await execFileAsync(process.execPath, [cli, "--list"]);
   assert.equal(typeof list.stdout, "string");
@@ -25,20 +26,18 @@ async function runCliE2E() {
   const parsed: unknown = JSON.parse(listJson.stdout.trim());
   assert.ok(Array.isArray(parsed));
 
-  const listExcluded = await execFileAsync(process.execPath, [
+  const excludeJson = await execFileAsync(process.execPath, [
     cli,
-    "--list",
     "--exclude",
-    "FakeAppThatDoesNotExist",
+    "TestDummyApp",
+    "--json",
   ]);
-  assert.equal(typeof listExcluded.stdout, "string");
-
-  const listFinder = await execFileAsync(process.execPath, [
-    cli,
-    "--list",
-    "--include-finder",
-  ]);
-  assert.equal(typeof listFinder.stdout, "string");
+  const excludeParsed: unknown = JSON.parse(excludeJson.stdout.trim());
+  assert.ok(
+    typeof excludeParsed === "object" &&
+      excludeParsed !== null &&
+      "exclude" in excludeParsed,
+  );
 }
 
 void runCliE2E().then(() => {

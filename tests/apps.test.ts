@@ -94,7 +94,7 @@ describe("apps parser and filters", () => {
     expect(sorted.map((a) => a.name)).toEqual(["Arc", "Discord", "Spotify"]);
   });
 
-  it("filters out Finder and terminals by default", () => {
+  it("filters out Finder and quitx by default, includes terminals by default", () => {
     const raw: AppInfo[] = [
       { name: "Finder", bundleId: "com.apple.finder" },
       { name: "Terminal", bundleId: "com.apple.terminal" },
@@ -105,40 +105,20 @@ describe("apps parser and filters", () => {
 
     const result = filterApps(raw);
     expect(result).toEqual([
+      { name: "iTerm2", bundleId: "com.googlecode.iterm2" },
       { name: "Spotify", bundleId: "com.spotify.client" },
+      { name: "Terminal", bundleId: "com.apple.terminal" },
     ]);
   });
 
-  it("includes Finder when includeFinder is true", () => {
-    const raw: AppInfo[] = [
-      { name: "Finder", bundleId: "com.apple.finder" },
-      { name: "Spotify", bundleId: "com.spotify.client" },
-    ];
-
-    const result = filterApps(raw, { includeFinder: true });
-    expect(result.map((a) => a.name)).toEqual(["Finder", "Spotify"]);
-  });
-
-  it("includes Terminal when includeTerminal is true", () => {
-    const raw: AppInfo[] = [
-      { name: "Terminal", bundleId: "com.apple.terminal" },
-      { name: "Spotify", bundleId: "com.spotify.client" },
-    ];
-
-    const result = filterApps(raw, { includeTerminal: true });
-    expect(result.map((a) => a.name)).toEqual(["Spotify", "Terminal"]);
-  });
-
-  it("excludes user-specified apps by name or bundleId", () => {
+  it("filters out apps matching exclude list by name or bundleId", () => {
     const raw: AppInfo[] = [
       { name: "Spotify", bundleId: "com.spotify.client" },
       { name: "Discord", bundleId: "com.discord.app" },
       { name: "Slack", bundleId: "com.tinyspeck.slackmacgap" },
     ];
 
-    const result = filterApps(raw, {
-      exclude: ["spotify", "com.discord.app"],
-    });
+    const result = filterApps(raw, ["spotify", "com.discord.app"]);
     expect(result.map((a) => a.name)).toEqual(["Slack"]);
   });
 
@@ -159,7 +139,7 @@ describe("apps parser and filters", () => {
         "Finder\tcom.apple.finder\t1\tFinder.app\nSpotify\tcom.spotify.client\t2\tSpotify.app\n",
     });
 
-    const apps = await getRunningApps({}, mockExecutor);
+    const apps = await getRunningApps(mockExecutor);
     expect(apps).toEqual([
       { name: "Spotify", bundleId: "com.spotify.client", pid: 2 },
     ]);
@@ -173,7 +153,7 @@ describe("apps parser and filters", () => {
         stdout: "Arc, Spotify",
       });
 
-    const apps = await getRunningApps({}, mockExecutor);
+    const apps = await getRunningApps(mockExecutor);
     expect(apps.map((a) => a.name)).toEqual(["Arc", "Spotify"]);
   });
 

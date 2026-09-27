@@ -1,6 +1,5 @@
-import type { AppInfo, FilterOptions } from "../types";
+import type { AppInfo } from "../types";
 import { runAppleScript, type ScriptExecutor } from "./applescript";
-import { getCurrentTerminalApp, isTerminalApp } from "./terminal";
 
 export const APP_DISCOVERY_SCRIPT = `
 tell application "System Events"
@@ -121,18 +120,10 @@ export function sortApps(apps: readonly AppInfo[]): AppInfo[] {
 
 export function filterApps(
   apps: readonly AppInfo[],
-  options: FilterOptions = {},
+  exclude: readonly string[] = [],
 ): AppInfo[] {
-  const currentTerminal =
-    options.currentTerminal !== undefined
-      ? options.currentTerminal
-      : getCurrentTerminalApp();
-
-  const userExcludes = new Set(
-    (options.exclude ?? []).map((e) => e.toLowerCase().trim()),
-  );
-
   const seen = new Set<string>();
+  const excludeSet = new Set(exclude.map((e) => e.toLowerCase().trim()));
   const filtered: AppInfo[] = [];
 
   for (const app of apps) {
@@ -143,21 +134,13 @@ export function filterApps(
       continue;
     }
 
-    if (!options.includeFinder) {
-      if (nameLower === "finder" || bundleLower === "com.apple.finder") {
-        continue;
-      }
-    }
-
-    if (!options.includeTerminal) {
-      if (isTerminalApp(app, currentTerminal)) {
-        continue;
-      }
+    if (nameLower === "finder" || bundleLower === "com.apple.finder") {
+      continue;
     }
 
     if (
-      userExcludes.has(nameLower) ||
-      (bundleLower && userExcludes.has(bundleLower))
+      excludeSet.has(nameLower) ||
+      (bundleLower && excludeSet.has(bundleLower))
     ) {
       continue;
     }
@@ -175,19 +158,22 @@ export function filterApps(
 }
 
 export async function getRunningApps(
-  options: FilterOptions = {},
+  optionsOrExecutor?: readonly string[] | ScriptExecutor,
   executor?: ScriptExecutor,
 ): Promise<AppInfo[]> {
+  const exec =
+    typeof optionsOrExecutor === "function" ? optionsOrExecutor : executor;
+  const exclude = Array.isArray(optionsOrExecutor) ? optionsOrExecutor : [];
+
   let stdout: string;
   try {
-    stdout = await runAppleScript(APP_DISCOVERY_SCRIPT, executor);
+    stdout = await runAppleScript(APP_DISCOVERY_SCRIPT, exec);
   } catch {
-    // If detailed query fails (e.g. older system or permissions), use fallback
-    stdout = await runAppleScript(FALLBACK_APP_DISCOVERY_SCRIPT, executor);
+    stdout = await runAppleScript(FALLBACK_APP_DISCOVERY_SCRIPT, exec);
   }
 
   const apps = parseAppListOutput(stdout);
-  return filterApps(apps, options);
+  return filterApps(apps, exclude);
 }
 
 export function isProcessAlive(pid: number): boolean {

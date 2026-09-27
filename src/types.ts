@@ -11,6 +11,10 @@ export interface QuitResult {
   error?: string | undefined;
 }
 
+export interface QuitxConfig {
+  exclude: string[];
+}
+
 export interface CliOptions {
   all?: boolean | undefined;
   yes?: boolean | undefined;
@@ -19,17 +23,10 @@ export interface CliOptions {
   json?: boolean | undefined;
   help?: boolean | undefined;
   version?: boolean | undefined;
-  includeFinder?: boolean | undefined;
-  includeTerminal?: boolean | undefined;
+  quiet?: boolean | undefined;
   exclude?: string[] | undefined;
+  manageExclude?: boolean | undefined;
   apps?: string[] | undefined;
-}
-
-export interface FilterOptions {
-  includeFinder?: boolean | undefined;
-  includeTerminal?: boolean | undefined;
-  exclude?: string[] | undefined;
-  currentTerminal?: string | null | undefined;
 }
 
 export interface QuitOptions {
