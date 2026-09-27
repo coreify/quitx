@@ -212,6 +212,34 @@ async function toggleNeverQuitMusic(): Promise<void> {
   );
 }
 
+async function toggleAutoUpdate(): Promise<void> {
+  const config = loadConfig();
+  const choice = await select({
+    message: `Automatic Update Checks (current: ${config.autoUpdate ? "enabled" : "disabled"})`,
+    options: [
+      {
+        value: "enabled",
+        label: "Enabled",
+        hint: "Check npm registry in background every 6 hours for updates.",
+      },
+      {
+        value: "disabled",
+        label: "Disabled",
+        hint: "Never perform automatic background update checks.",
+      },
+      backOption(),
+    ],
+    initialValue: config.autoUpdate ? "enabled" : "disabled",
+  });
+
+  if (isCancel(choice) || choice === BACK_VALUE) return;
+  config.autoUpdate = choice === "enabled";
+  saveConfig(config);
+  log.success(
+    `Automatic update checks: ${config.autoUpdate ? "enabled" : "disabled"}`,
+  );
+}
+
 async function manageExcludedApps(): Promise<void> {
   const choice = await select({
     message: "Manage excluded apps",
@@ -429,6 +457,11 @@ export async function configCommand(): Promise<number> {
           hint: `current: ${config.neverQuitMusic ? "enabled" : "disabled"}`,
         },
         {
+          value: "auto-update",
+          label: "Automatic update checks",
+          hint: `current: ${config.autoUpdate ? "enabled" : "disabled"}`,
+        },
+        {
           value: "default-select",
           label: "Deselect apps by default",
           hint: `current: ${!config.defaultSelectAll ? "enabled" : "disabled"}`,
@@ -471,6 +504,7 @@ export async function configCommand(): Promise<number> {
     if (choice === "background") await toggleIncludeBackground();
     if (choice === "group-background") await toggleGroupBackground();
     if (choice === "never-quit-music") await toggleNeverQuitMusic();
+    if (choice === "auto-update") await toggleAutoUpdate();
     if (choice === "default-select") await toggleDefaultSelection();
     if (choice === "finder") await toggleIncludeFinder();
     if (choice === "trash") await toggleIncludeTrash();
@@ -481,5 +515,179 @@ export async function configCommand(): Promise<number> {
 
   showOutro("Config saved.");
   printThanks();
+  return 0;
+}
+
+export const VALID_CONFIG_KEYS = [
+  "exclude",
+  "force",
+  "includeFinder",
+  "includeTrash",
+  "includeBackground",
+  "groupBackground",
+  "defaultSelectAll",
+  "neverQuitMusic",
+  "musicApps",
+  "autoUpdate",
+] as const;
+
+export type ValidConfigKey = (typeof VALID_CONFIG_KEYS)[number];
+
+export async function handleConfigCli(
+  options: {
+    configAction?: "get" | "set" | "show" | "reset" | undefined;
+    configKey?: string | undefined;
+    configValue?: string | undefined;
+    json?: boolean | undefined;
+    yes?: boolean | undefined;
+  } = {},
+): Promise<number> {
+  const action = options.configAction;
+  if (!action) {
+    return await configCommand();
+  }
+
+  const config = loadConfig();
+
+  if (action === "show") {
+    if (options.json) {
+      console.log(JSON.stringify(config, null, 2));
+      return 0;
+    }
+    console.log("quitx configuration:");
+    for (const [key, value] of Object.entries(config)) {
+      const displayVal = Array.isArray(value)
+        ? value.length === 0
+          ? "[]"
+          : `[${value.join(", ")}]`
+        : String(value);
+      console.log(`  ${key}: ${displayVal}`);
+    }
+    return 0;
+  }
+
+  if (action === "get") {
+    if (!options.configKey) {
+      console.error("✖ Missing config key. Usage: quitx config get <key>");
+      return 1;
+    }
+    const key = options.configKey as ValidConfigKey;
+    if (!VALID_CONFIG_KEYS.includes(key)) {
+      console.error(
+        `✖ Unknown config key: "${options.configKey}". Valid keys: ${VALID_CONFIG_KEYS.join(", ")}`,
+      );
+      return 1;
+    }
+    const val = config[key];
+    if (options.json) {
+      console.log(JSON.stringify({ [key]: val }, null, 2));
+    } else if (Array.isArray(val)) {
+      console.log(val.join(", "));
+    } else {
+      console.log(String(val));
+    }
+    return 0;
+  }
+
+  if (action === "set") {
+    if (!options.configKey) {
+      console.error(
+        "✖ Missing config key. Usage: quitx config set <key> <value>",
+      );
+      return 1;
+    }
+    if (options.configValue === undefined) {
+      console.error(
+        `✖ Missing value for "${options.configKey}". Usage: quitx config set <key> <value>`,
+      );
+      return 1;
+    }
+    const key = options.configKey as ValidConfigKey;
+    if (!VALID_CONFIG_KEYS.includes(key)) {
+      console.error(
+        `✖ Unknown config key: "${options.configKey}". Valid keys: ${VALID_CONFIG_KEYS.join(", ")}`,
+      );
+      return 1;
+    }
+
+    const raw = options.configValue.trim();
+    if (key === "force") {
+      const lower = raw.toLowerCase();
+      if (lower === "force" || lower === "true" || lower === "1") {
+        config.force = "force";
+      } else if (lower === "normal" || lower === "false" || lower === "0") {
+        config.force = "normal";
+      } else {
+        console.error(
+          `✖ Invalid value for force: "${raw}". Must be "normal" or "force".`,
+        );
+        return 1;
+      }
+    } else if (
+      key === "includeFinder" ||
+      key === "includeTrash" ||
+      key === "includeBackground" ||
+      key === "groupBackground" ||
+      key === "defaultSelectAll" ||
+      key === "neverQuitMusic" ||
+      key === "autoUpdate"
+    ) {
+      const lower = raw.toLowerCase();
+      if (["true", "1", "yes", "on", "enable", "enabled"].includes(lower)) {
+        config[key] = true;
+      } else if (
+        ["false", "0", "no", "off", "disable", "disabled"].includes(lower)
+      ) {
+        config[key] = false;
+      } else {
+        console.error(
+          `✖ Invalid boolean for ${key}: "${raw}". Use true or false.`,
+        );
+        return 1;
+      }
+    } else if (key === "exclude" || key === "musicApps") {
+      const items = raw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      config[key] = items;
+    }
+
+    saveConfig(config);
+    if (options.json) {
+      console.log(JSON.stringify({ [key]: config[key] }, null, 2));
+    } else {
+      const displayVal = Array.isArray(config[key])
+        ? `[${(config[key] as string[]).join(", ")}]`
+        : String(config[key]);
+      console.log(`Set ${key} = ${displayVal}`);
+    }
+    return 0;
+  }
+
+  if (action === "reset") {
+    if (!options.yes) {
+      const confirm = await select({
+        message: "Reset all settings to defaults?",
+        options: [
+          { value: "yes", label: "Yes, reset all" },
+          { value: "no", label: "No, keep current settings" },
+        ],
+        initialValue: "no",
+      });
+      if (isCancel(confirm) || confirm !== "yes") {
+        return 0;
+      }
+    }
+
+    saveConfig({ ...DEFAULT_CONFIG, exclude: [], musicApps: [] });
+    if (options.json) {
+      console.log(JSON.stringify({ reset: true }, null, 2));
+    } else {
+      log.success("Config reset to defaults.");
+    }
+    return 0;
+  }
+
   return 0;
 }

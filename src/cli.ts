@@ -1,10 +1,11 @@
 import { isCancel, note, select, spinner } from "@clack/prompts";
 import { readFile } from "node:fs/promises";
 import { allCommand } from "./commands/all";
-import { configCommand } from "./commands/config";
+import { handleConfigCli } from "./commands/config";
 import { excludeCommand } from "./commands/exclude";
 import { interactiveCommand } from "./commands/interactive";
 import { listCommand } from "./commands/list";
+import { loadConfig } from "./config";
 import type { CliOptions } from "./types";
 import {
   printThanks,
@@ -56,8 +57,41 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
     const arg = args[i];
     if (!arg) continue;
 
-    if (arg === "config") {
+    if (arg === "--dry-run") {
+      options.dryRun = true;
+    } else if (arg === "config") {
       options.manageConfig = true;
+      const next = args[i + 1];
+      if (
+        next &&
+        !next.startsWith("-") &&
+        ["show", "get", "set", "reset"].includes(next.toLowerCase())
+      ) {
+        options.configAction = next.toLowerCase() as
+          "show" | "get" | "set" | "reset";
+        i++;
+        if (options.configAction === "get") {
+          const key = args[++i];
+          if (key && !key.startsWith("-")) {
+            options.configKey = key;
+          } else if (key) {
+            i--;
+          }
+        } else if (options.configAction === "set") {
+          const key = args[++i];
+          if (key && !key.startsWith("-")) {
+            options.configKey = key;
+            const val = args[++i];
+            if (val && !val.startsWith("-")) {
+              options.configValue = val;
+            } else if (val) {
+              i--;
+            }
+          } else if (key) {
+            i--;
+          }
+        }
+      }
     } else if (arg === "exclude") {
       options.manageExclude = true;
     } else if (arg === "check-update" || arg === "--check-update") {
@@ -114,7 +148,13 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
   }
 
   if (rawPositional.length > 0) {
-    if (options.manageExclude) {
+    if (options.manageConfig) {
+      if (!options.configAction) {
+        throw new Error(
+          `Unknown config command: "${rawPositional[0]}". Usage: quitx config [show|get|set|reset]`,
+        );
+      }
+    } else if (options.manageExclude) {
       if (
         rawPositional.length > 1 &&
         !rawPositional.some((a) => a.includes(","))
@@ -250,8 +290,14 @@ export async function handleAutoUpdateCheck(
     options.noUpdateCheck ||
     options.checkUpdate ||
     options.help ||
-    options.version
+    options.version ||
+    options.dryRun
   ) {
+    return;
+  }
+
+  const config = loadConfig();
+  if (config.autoUpdate === false) {
     return;
   }
 
@@ -356,7 +402,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
 
   try {
     if (options.manageConfig) {
-      return await configCommand();
+      return await handleConfigCli(options);
     }
 
     if (

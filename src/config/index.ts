@@ -16,6 +16,7 @@ export const DEFAULT_CONFIG: QuitxConfig = {
   defaultSelectAll: true,
   neverQuitMusic: false,
   musicApps: [],
+  autoUpdate: true,
 };
 
 export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
@@ -53,6 +54,13 @@ export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
         ? obj.neverQuitMusic
         : DEFAULT_CONFIG.neverQuitMusic;
 
+    const autoUpdateVal =
+      typeof obj.autoUpdate === "boolean"
+        ? obj.autoUpdate
+        : typeof obj.checkUpdate === "boolean"
+          ? obj.checkUpdate
+          : DEFAULT_CONFIG.autoUpdate;
+
     return {
       exclude: Array.isArray(obj.exclude) ? (obj.exclude as string[]) : [],
       force:
@@ -77,6 +85,7 @@ export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
       musicApps: Array.isArray(obj.musicApps)
         ? (obj.musicApps as string[])
         : DEFAULT_CONFIG.musicApps,
+      autoUpdate: autoUpdateVal,
     };
   } catch {
     return { ...DEFAULT_CONFIG, exclude: [], musicApps: [] };

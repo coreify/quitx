@@ -114,17 +114,25 @@ export async function interactiveCommand(
 
   if (!options.json) {
     s.start(
-      `Quitting ${targetApps.length} ${targetApps.length === 1 ? "app" : "apps"}...`,
+      options.dryRun
+        ? `Simulating quit for ${targetApps.length} ${targetApps.length === 1 ? "app" : "apps"}...`
+        : `Quitting ${targetApps.length} ${targetApps.length === 1 ? "app" : "apps"}...`,
     );
   }
 
-  const results = await quitApps(targetApps, { force: useForce });
+  const results = await quitApps(targetApps, {
+    force: useForce,
+    dryRun: options.dryRun,
+  });
 
   if (!options.json) {
-    s.stop("Quitting complete");
-    renderResults(results);
+    s.stop(options.dryRun ? "Dry run complete" : "Quitting complete");
+    renderResults(results, options.dryRun);
     const successCount = results.filter((r) => r.success).length;
-    showOutro(`Done. Quit ${successCount} of ${targetApps.length} apps.`);
+    const actionVerb = options.dryRun ? "Would quit" : "Quit";
+    showOutro(
+      `Done. ${actionVerb} ${successCount} of ${targetApps.length} apps.`,
+    );
     printThanks(options);
   } else {
     console.log(

@@ -138,6 +138,10 @@ export async function quitApp(
   executor?: ScriptExecutor,
   deferredScheduler: DeferredQuitScheduler = defaultDeferredQuitScheduler,
 ): Promise<QuitResult> {
+  if (options.dryRun) {
+    return { app, success: true, forced: options.force ?? false };
+  }
+
   if (isCurrentTerminalApp(app)) {
     deferredScheduler(app, options.force ?? false);
     return { app, success: true, forced: options.force ?? false };
@@ -212,6 +216,14 @@ export async function quitApps(
 ): Promise<QuitResult[]> {
   if (apps.length === 0) {
     return [];
+  }
+
+  if (options.dryRun) {
+    return apps.map((app) => ({
+      app,
+      success: true,
+      forced: options.force ?? false,
+    }));
   }
 
   const currentTerminalApps: AppInfo[] = [];

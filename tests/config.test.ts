@@ -46,6 +46,7 @@ describe("config storage", () => {
       groupBackground: true,
       defaultSelectAll: true,
       neverQuitMusic: false,
+      autoUpdate: true,
       musicApps: [],
     });
   });
@@ -61,6 +62,7 @@ describe("config storage", () => {
         groupBackground: true,
         defaultSelectAll: true,
         neverQuitMusic: false,
+        autoUpdate: true,
         musicApps: ["MyCustomPlayer"],
       },
       TEST_FILE,

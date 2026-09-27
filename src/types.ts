@@ -25,6 +25,7 @@ export interface QuitxConfig {
   defaultSelectAll: boolean;
   neverQuitMusic: boolean;
   musicApps: string[];
+  autoUpdate: boolean;
 }
 
 export interface CliOptions {
@@ -33,12 +34,16 @@ export interface CliOptions {
   list?: boolean | undefined;
   force?: boolean | undefined;
   json?: boolean | undefined;
+  dryRun?: boolean | undefined;
   help?: boolean | undefined;
   version?: boolean | undefined;
   quiet?: boolean | undefined;
   exclude?: string[] | undefined;
   manageExclude?: boolean | undefined;
   manageConfig?: boolean | undefined;
+  configAction?: "get" | "set" | "show" | "reset" | undefined;
+  configKey?: string | undefined;
+  configValue?: string | undefined;
   includeFinder?: boolean | undefined;
   includeTrash?: boolean | undefined;
   includeBackground?: boolean | undefined;
@@ -51,6 +56,7 @@ export interface CliOptions {
 
 export interface QuitOptions {
   force?: boolean | undefined;
+  dryRun?: boolean | undefined;
   timeoutMs?: number | undefined;
   parallel?: boolean | undefined;
 }

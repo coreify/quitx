@@ -355,4 +355,42 @@ describe("quit service", () => {
       expect.arrayContaining(["-e"]),
     );
   });
+
+  it("quitApp returns simulated success on dryRun without executing scripts", async () => {
+    const mockExecutor: ScriptExecutor = vi.fn();
+    const app: AppInfo = { name: "TestApp", pid: 1234 };
+
+    const res = await quitApp(app, { dryRun: true }, mockExecutor);
+    expect(res.success).toBe(true);
+    expect(res.forced).toBe(false);
+    expect(mockExecutor).not.toHaveBeenCalled();
+
+    const resForced = await quitApp(
+      app,
+      { dryRun: true, force: true },
+      mockExecutor,
+    );
+    expect(resForced.success).toBe(true);
+    expect(resForced.forced).toBe(true);
+  });
+
+  it("quitApps returns simulated success for all apps on dryRun", async () => {
+    const mockExecutor: ScriptExecutor = vi.fn();
+    const apps: AppInfo[] = [
+      { name: "App1", pid: 100 },
+      { name: "App2", pid: 101 },
+    ];
+
+    const results = await quitApps(
+      apps,
+      { dryRun: true, force: true },
+      mockExecutor,
+    );
+    expect(results).toHaveLength(2);
+    expect(results[0]?.success).toBe(true);
+    expect(results[0]?.forced).toBe(true);
+    expect(results[1]?.success).toBe(true);
+    expect(results[1]?.forced).toBe(true);
+    expect(mockExecutor).not.toHaveBeenCalled();
+  });
 });

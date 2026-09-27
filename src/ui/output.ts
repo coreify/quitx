@@ -13,14 +13,24 @@ export function showCancel(message = "Cancelled."): void {
   cancel(message);
 }
 
-export function renderResults(results: readonly QuitResult[]): void {
+export function renderResults(
+  results: readonly QuitResult[],
+  dryRun = false,
+): void {
   for (const res of results) {
     if (res.success) {
-      const label = res.forced ? `Force quit ${res.app.name}` : res.app.name;
+      const label = dryRun
+        ? res.forced
+          ? `[dry-run] Would force quit ${res.app.name}`
+          : `[dry-run] Would quit ${res.app.name}`
+        : res.forced
+          ? `Force quit ${res.app.name}`
+          : res.app.name;
       log.success(label);
     } else {
+      const prefix = dryRun ? "[dry-run] " : "";
       const reason = res.error ? ` (${res.error})` : "";
-      log.error(`Could not quit ${res.app.name}${reason}`);
+      log.error(`${prefix}Could not quit ${res.app.name}${reason}`);
     }
   }
 }
@@ -49,6 +59,7 @@ OPTIONS:
   -y, --yes               Skip confirmation prompts
   -l, --list              List running GUI apps and exit
   -f, --force             Force quit apps (SIGKILL) if normal quit fails
+      --dry-run           Simulate quitting without terminating apps
   -b, --background        Include background processes in app list
       --include-finder    Include Finder in the app list
       --include-trash     Include Trash in the app list (empties on quit)
@@ -61,18 +72,22 @@ OPTIONS:
   -v, --version           Show version number
 
 COMMANDS:
-  config                  Manage configuration interactively
+  config [action]         Manage configuration (show, get, set, reset)
   exclude                 Manage excluded applications interactively
   check-update            Check for package updates
 
 EXAMPLES:
   $ quitx                         Interactive app selector
   $ quitx --all                   Quit all running apps (with confirmation)
+  $ quitx --all --dry-run         Preview quitting all apps without killing them
   $ quitx --all --yes             Quit all running apps immediately
   $ quitx --list                  List currently running GUI apps
   $ quitx --list --background     List all apps including background processes
   $ quitx --list --include-finder List apps including Finder
   $ quitx config                  Open interactive config manager
+  $ quitx config show             Print current configuration
+  $ quitx config set force true   Set default quit mode to force
+  $ quitx config get exclude      Print excluded apps list
   $ quitx exclude                 Open interactive menu to manage excluded apps
   $ quitx check-update            Check for package updates
   $ quitx --exclude Spotify,Slack Add Spotify and Slack to exclude list

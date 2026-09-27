@@ -99,6 +99,27 @@ describe("output utilities", () => {
     expect(log.error).toHaveBeenCalledWith("Could not quit App3 (Prompt open)");
   });
 
+  it("renders quit results with dryRun flag", () => {
+    const results: QuitResult[] = [
+      { app: { name: "App1" }, success: true, forced: false },
+      { app: { name: "App2" }, success: true, forced: true },
+      {
+        app: { name: "App3" },
+        success: false,
+        forced: false,
+        error: "Prompt open",
+      },
+    ];
+
+    renderResults(results, true);
+
+    expect(log.success).toHaveBeenCalledWith("[dry-run] Would quit App1");
+    expect(log.success).toHaveBeenCalledWith("[dry-run] Would force quit App2");
+    expect(log.error).toHaveBeenCalledWith(
+      "[dry-run] Could not quit App3 (Prompt open)",
+    );
+  });
+
   it("showIntro, showOutro, and showCancel call clack functions", () => {
     showIntro();
     expect(intro).toHaveBeenCalledWith("quitx");

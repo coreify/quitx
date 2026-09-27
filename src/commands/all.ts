@@ -56,16 +56,24 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
 
   const s = spinner();
   if (!options.json) {
-    s.start(`Quitting ${apps.length} apps...`);
+    s.start(
+      options.dryRun
+        ? `Simulating quit for ${apps.length} apps...`
+        : `Quitting ${apps.length} apps...`,
+    );
   }
 
-  const results = await quitApps(apps, { force: useForce });
+  const results = await quitApps(apps, {
+    force: useForce,
+    dryRun: options.dryRun,
+  });
 
   if (!options.json) {
-    s.stop("Quitting complete");
-    renderResults(results);
+    s.stop(options.dryRun ? "Dry run complete" : "Quitting complete");
+    renderResults(results, options.dryRun);
     const successCount = results.filter((r) => r.success).length;
-    showOutro(`Quit ${successCount} of ${apps.length} apps.`);
+    const actionVerb = options.dryRun ? "Would quit" : "Quit";
+    showOutro(`${actionVerb} ${successCount} of ${apps.length} apps.`);
     printThanks(options);
   } else {
     console.log(

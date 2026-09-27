@@ -73,12 +73,38 @@ describe("cli parser and dispatcher", () => {
     expect(opts2.includeBackground).toBe(true);
   });
 
-  it("parses --config flag and config subcommand", () => {
+  it("parses --config flag and config subcommand with actions", () => {
     const opts1 = parseCliArgs(["--config"]);
     expect(opts1.manageConfig).toBe(true);
 
     const opts2 = parseCliArgs(["config"]);
     expect(opts2.manageConfig).toBe(true);
+
+    const optsDry = parseCliArgs(["--dry-run", "-a"]);
+    expect(optsDry.dryRun).toBe(true);
+    expect(optsDry.all).toBe(true);
+
+    const optsShow = parseCliArgs(["config", "show", "--json"]);
+    expect(optsShow.manageConfig).toBe(true);
+    expect(optsShow.configAction).toBe("show");
+    expect(optsShow.json).toBe(true);
+
+    const optsGet = parseCliArgs(["config", "get", "force"]);
+    expect(optsGet.configAction).toBe("get");
+    expect(optsGet.configKey).toBe("force");
+
+    const optsSet = parseCliArgs(["config", "set", "force", "true"]);
+    expect(optsSet.configAction).toBe("set");
+    expect(optsSet.configKey).toBe("force");
+    expect(optsSet.configValue).toBe("true");
+
+    const optsReset = parseCliArgs(["config", "reset", "-y"]);
+    expect(optsReset.configAction).toBe("reset");
+    expect(optsReset.yes).toBe(true);
+
+    expect(() => parseCliArgs(["config", "unknowncmd"])).toThrow(
+      /Unknown config command/,
+    );
   });
 
   it("parses check-update and --no-update-check flags", () => {
@@ -161,7 +187,7 @@ describe("cli parser and dispatcher", () => {
   it("dispatches to config command when config or --config passed", async () => {
     const configModule = await import("../src/commands/config");
     const configSpy = vi
-      .spyOn(configModule, "configCommand")
+      .spyOn(configModule, "handleConfigCli")
       .mockResolvedValue(0);
 
     const code1 = await main(["config"]);
@@ -230,5 +256,32 @@ describe("cli parser and dispatcher", () => {
     );
 
     consoleErrorSpy.mockRestore();
+  });
+
+  it("handleAutoUpdateCheck respects dryRun and autoUpdate config", async () => {
+    const { handleAutoUpdateCheck } = await import("../src/cli");
+    const updateModule = await import("../src/update");
+    const checkSpy = vi.spyOn(updateModule, "checkForUpdate");
+
+    await handleAutoUpdateCheck("1.0.0", { dryRun: true });
+    expect(checkSpy).not.toHaveBeenCalled();
+
+    const configModule = await import("../src/config");
+    vi.spyOn(configModule, "loadConfig").mockReturnValue({
+      exclude: [],
+      force: "normal",
+      includeFinder: false,
+      includeTrash: false,
+      includeBackground: false,
+      groupBackground: true,
+      defaultSelectAll: true,
+      neverQuitMusic: false,
+      musicApps: [],
+      autoUpdate: false,
+    });
+    await handleAutoUpdateCheck("1.0.0", {});
+    expect(checkSpy).not.toHaveBeenCalled();
+
+    checkSpy.mockRestore();
   });
 });

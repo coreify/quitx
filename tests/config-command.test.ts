@@ -31,7 +31,7 @@ vi.mock("@clack/prompts", () => ({
   spinner: () => ({ start: vi.fn(), stop: vi.fn() }),
 }));
 
-import { configCommand } from "../src/commands/config";
+import { configCommand, handleConfigCli } from "../src/commands/config";
 import * as configModule from "../src/config";
 import * as appsModule from "../src/macos/apps";
 import type { QuitxConfig } from "../src/types";
@@ -46,6 +46,7 @@ const fullConfig = (overrides: Partial<QuitxConfig> = {}): QuitxConfig => ({
   defaultSelectAll: true,
   neverQuitMusic: false,
   musicApps: [],
+  autoUpdate: true,
   ...overrides,
 });
 
@@ -352,5 +353,280 @@ describe("config command", () => {
 
     const code = await configCommand();
     expect(code).toBe(0);
+  });
+
+  it("toggles auto update to disabled and handles cancel", async () => {
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(fullConfig());
+    const saveSpy = vi
+      .spyOn(configModule, "saveConfig")
+      .mockImplementation(() => {});
+
+    mockSelect
+      .mockResolvedValueOnce("auto-update")
+      .mockResolvedValueOnce("disabled")
+      .mockResolvedValueOnce("auto-update")
+      .mockResolvedValueOnce(Symbol("cancel"))
+      .mockResolvedValueOnce("exit");
+
+    const code = await configCommand();
+    expect(code).toBe(0);
+    expect(saveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ autoUpdate: false }),
+    );
+    expect(mockLogSuccess).toHaveBeenCalledWith(
+      "Automatic update checks: disabled",
+    );
+  });
+
+  describe("handleConfigCli", () => {
+    it("delegates to interactive configCommand when no configAction is provided", async () => {
+      vi.spyOn(configModule, "loadConfig").mockReturnValue(fullConfig());
+      mockSelect.mockResolvedValueOnce("exit");
+
+      const code = await handleConfigCli();
+      expect(code).toBe(0);
+      expect(mockOutro).toHaveBeenCalledWith("Config saved.");
+    });
+
+    it("handles show action with text and json outputs", async () => {
+      vi.spyOn(configModule, "loadConfig").mockReturnValue(
+        fullConfig({ exclude: ["Spotify"] }),
+      );
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      const codeText = await handleConfigCli({ configAction: "show" });
+      expect(codeText).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith("quitx configuration:");
+
+      logSpy.mockClear();
+      const codeJson = await handleConfigCli({
+        configAction: "show",
+        json: true,
+      });
+      expect(codeJson).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith(
+        JSON.stringify(fullConfig({ exclude: ["Spotify"] }), null, 2),
+      );
+
+      logSpy.mockRestore();
+    });
+
+    it("handles get action with valid, invalid, and missing keys", async () => {
+      vi.spyOn(configModule, "loadConfig").mockReturnValue(
+        fullConfig({ force: "normal", exclude: ["App1", "App2"] }),
+      );
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      // Missing key
+      const codeMissing = await handleConfigCli({ configAction: "get" });
+      expect(codeMissing).toBe(1);
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Missing config key"),
+      );
+
+      // Unknown key
+      const codeUnknown = await handleConfigCli({
+        configAction: "get",
+        configKey: "nonExistentKey",
+      });
+      expect(codeUnknown).toBe(1);
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Unknown config key"),
+      );
+
+      // Scalar key
+      const codeScalar = await handleConfigCli({
+        configAction: "get",
+        configKey: "force",
+      });
+      expect(codeScalar).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith("normal");
+
+      // Array key
+      const codeArray = await handleConfigCli({
+        configAction: "get",
+        configKey: "exclude",
+      });
+      expect(codeArray).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith("App1, App2");
+
+      // JSON key
+      const codeJson = await handleConfigCli({
+        configAction: "get",
+        configKey: "force",
+        json: true,
+      });
+      expect(codeJson).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith(
+        JSON.stringify({ force: "normal" }, null, 2),
+      );
+
+      logSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
+
+    it("handles set action with force, booleans, arrays, validation and json", async () => {
+      const cfg = fullConfig();
+      vi.spyOn(configModule, "loadConfig").mockReturnValue(cfg);
+      const saveSpy = vi
+        .spyOn(configModule, "saveConfig")
+        .mockImplementation(() => {});
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      // Missing key
+      expect(await handleConfigCli({ configAction: "set" })).toBe(1);
+      // Missing value
+      expect(
+        await handleConfigCli({ configAction: "set", configKey: "force" }),
+      ).toBe(1);
+      // Unknown key
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "invalid",
+          configValue: "val",
+        }),
+      ).toBe(1);
+
+      // Invalid force
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "force",
+          configValue: "invalid",
+        }),
+      ).toBe(1);
+
+      // Valid force
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "force",
+          configValue: "force",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ force: "force" }),
+      );
+
+      // Force normal
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "force",
+          configValue: "normal",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ force: "normal" }),
+      );
+
+      // Invalid boolean
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "autoUpdate",
+          configValue: "maybe",
+        }),
+      ).toBe(1);
+
+      // Valid booleans
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "autoUpdate",
+          configValue: "false",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ autoUpdate: false }),
+      );
+
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "includeFinder",
+          configValue: "true",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ includeFinder: true }),
+      );
+
+      // Array value
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "exclude",
+          configValue: "Spotify, Slack",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ exclude: ["Spotify", "Slack"] }),
+      );
+
+      // JSON output
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "autoUpdate",
+          configValue: "true",
+          json: true,
+        }),
+      ).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith(
+        JSON.stringify({ autoUpdate: true }, null, 2),
+      );
+
+      logSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
+
+    it("handles reset action with prompt confirmation, cancellation, --yes and --json", async () => {
+      const saveSpy = vi
+        .spyOn(configModule, "saveConfig")
+        .mockImplementation(() => {});
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      // Cancelled by prompt
+      mockSelect.mockResolvedValueOnce(Symbol("cancel"));
+      expect(await handleConfigCli({ configAction: "reset" })).toBe(0);
+      expect(saveSpy).not.toHaveBeenCalled();
+
+      // Confirmed by prompt
+      mockSelect.mockResolvedValueOnce("yes");
+      expect(await handleConfigCli({ configAction: "reset" })).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ...configModule.DEFAULT_CONFIG,
+          exclude: [],
+          musicApps: [],
+        }),
+      );
+
+      // With --yes flag
+      saveSpy.mockClear();
+      expect(await handleConfigCli({ configAction: "reset", yes: true })).toBe(
+        0,
+      );
+      expect(saveSpy).toHaveBeenCalled();
+
+      // With --json flag
+      saveSpy.mockClear();
+      expect(
+        await handleConfigCli({
+          configAction: "reset",
+          yes: true,
+          json: true,
+        }),
+      ).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith(
+        JSON.stringify({ reset: true }, null, 2),
+      );
+
+      logSpy.mockRestore();
+    });
   });
 });

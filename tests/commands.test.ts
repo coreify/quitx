@@ -272,4 +272,42 @@ describe("cli commands", () => {
     );
     logSpy.mockRestore();
   });
+
+  it("allCommand handles dryRun option", async () => {
+    const mockApps: AppInfo[] = [{ name: "Arc" }];
+    vi.spyOn(appsModule, "getRunningApps").mockResolvedValue(mockApps);
+    const quitSpy = vi
+      .spyOn(quitModule, "quitApps")
+      .mockResolvedValue([{ app: mockApps[0]!, success: true, forced: false }]);
+
+    const code = await allCommand({ dryRun: true, yes: true });
+    expect(code).toBe(0);
+    expect(quitSpy).toHaveBeenCalledWith(
+      mockApps,
+      expect.objectContaining({ dryRun: true }),
+    );
+    expect(mockSpinnerStop).toHaveBeenCalledWith("Dry run complete");
+    expect(mockOutro).toHaveBeenCalledWith("Would quit 1 of 1 apps.");
+  });
+
+  it("interactiveCommand handles dryRun option", async () => {
+    const mockApps: AppInfo[] = [{ name: "Arc" }];
+    vi.spyOn(appsModule, "getRunningApps").mockResolvedValue(mockApps);
+    const quitSpy = vi
+      .spyOn(quitModule, "quitApps")
+      .mockResolvedValue([{ app: mockApps[0]!, success: true, forced: false }]);
+
+    const code = await interactiveCommand({
+      apps: ["Arc"],
+      dryRun: true,
+      yes: true,
+    });
+    expect(code).toBe(0);
+    expect(quitSpy).toHaveBeenCalledWith(
+      mockApps,
+      expect.objectContaining({ dryRun: true }),
+    );
+    expect(mockSpinnerStop).toHaveBeenCalledWith("Dry run complete");
+    expect(mockOutro).toHaveBeenCalledWith("Done. Would quit 1 of 1 apps.");
+  });
 });
