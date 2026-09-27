@@ -134,7 +134,9 @@ jobs:
           ## Install
 
           \`\`\`bash
-          npm install -g quitx
+          npm install -g @coreify/quitx
+          # or run directly
+          npx @coreify/quitx
           \`\`\`
 
           **Full changelog:** https://github.com/${{ github.repository }}/commits/${{ steps.meta.outputs.tag }}
