@@ -29,8 +29,7 @@ describe("output utilities", () => {
     vi.clearAllMocks();
   });
 
-  it("contains quitx.js.org in THANKS_MESSAGE and printThanks logs it", () => {
-    expect(THANKS_MESSAGE).toContain("quitx.js.org");
+  it("contains THANKS_MESSAGE and printThanks logs it", () => {
     expect(THANKS_MESSAGE).toContain("Thanks for using quitx..!");
 
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});

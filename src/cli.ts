@@ -14,6 +14,7 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
     apps: [],
     exclude: [],
   };
+  const rawPositional: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -64,15 +65,51 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
     } else if (arg.startsWith("-")) {
       continue;
     } else {
-      if (options.manageExclude) {
-        const split = arg
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean);
-        options.exclude?.push(...split);
-      } else {
-        options.apps?.push(arg);
+      rawPositional.push(arg);
+    }
+  }
+
+  if (rawPositional.length > 0) {
+    if (options.manageExclude) {
+      if (
+        rawPositional.length > 1 &&
+        !rawPositional.some((a) => a.includes(","))
+      ) {
+        throw new Error(
+          "Multiple exclude applications must be comma-separated, not space-separated. Example: quitx exclude Spotify,Discord",
+        );
       }
+      const combined = rawPositional.join(" ");
+      const split = combined
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (split.length === 0) {
+        throw new Error(
+          "No application name specified to exclude. Example: quitx exclude Spotify,Discord",
+        );
+      }
+      options.exclude?.push(...split);
+    } else {
+      if (
+        rawPositional.length > 1 &&
+        !rawPositional.some((a) => a.includes(","))
+      ) {
+        throw new Error(
+          'Multiple applications must be comma-separated, not space-separated. Example: quitx Slack,Discord. For names with spaces, use quotes: quitx "Google Chrome"',
+        );
+      }
+      const combined = rawPositional.join(" ");
+      const split = combined
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (split.length === 0) {
+        throw new Error(
+          'No application name specified. Example: quitx Slack,Discord. For names with spaces, use quotes: quitx "Google Chrome"',
+        );
+      }
+      options.apps?.push(...split);
     }
   }
 
@@ -86,7 +123,14 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
   }
   ensureMacOS();
 
-  const options = parseCliArgs(argv);
+  let options: CliOptions = {};
+  try {
+    options = parseCliArgs(argv);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`✖ Error: ${msg}`);
+    return 1;
+  }
 
   if (process.stdin.isTTY) {
     process.once("SIGINT", () => {

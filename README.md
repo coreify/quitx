@@ -20,7 +20,7 @@ npx @coreify/quitx
 
 ```bash
 quitx                       # Interactive multi-select menu
-quitx Slack Discord         # Quit specific apps directly
+quitx Slack,Discord         # Quit specific apps directly
 quitx -a [-y]               # Quit all running apps (-y skips confirm)
 quitx -l [--json]           # List running GUI apps
 quitx -f                    # Force quit (SIGKILL) if graceful exit fails
@@ -33,7 +33,7 @@ quitx --exclude Spotify     # Add apps to persistent exclude list
 
 | Option             | Description                                   |
 | ------------------ | --------------------------------------------- |
-| `<apps...>`        | Quit specific applications by name            |
+| `<apps>`           | Quit specific applications (comma-separated)  |
 | `-a, --all`        | Quit all running GUI apps                     |
 | `-y, --yes`        | Skip confirmation prompts (auto-confirm)      |
 | `-l, --list`       | List running GUI apps and exit                |

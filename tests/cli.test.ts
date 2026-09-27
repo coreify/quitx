@@ -16,8 +16,7 @@ describe("cli parser and dispatcher", () => {
       "--exclude",
       "Slack,Discord",
       "--exclude=Chrome",
-      "Spotify",
-      "Notes",
+      "Spotify,Notes",
     ]);
 
     expect(opts.all).toBe(true);
@@ -31,6 +30,33 @@ describe("cli parser and dispatcher", () => {
     const optsExcludeCmd = parseCliArgs(["exclude", "Warp,Ghostty"]);
     expect(optsExcludeCmd.manageExclude).toBe(true);
     expect(optsExcludeCmd.exclude).toEqual(["Warp", "Ghostty"]);
+  });
+
+  it("validates comma-separated apps correctly", () => {
+    // Single app
+    const single = parseCliArgs(["Spotify"]);
+    expect(single.apps).toEqual(["Spotify"]);
+
+    // App with space in quotes
+    const withSpace = parseCliArgs(["Google Chrome"]);
+    expect(withSpace.apps).toEqual(["Google Chrome"]);
+
+    // Comma-separated with spaces around comma
+    const commaSpaces = parseCliArgs(["Spotify,", "Discord"]);
+    expect(commaSpaces.apps).toEqual(["Spotify", "Discord"]);
+
+    // Error on space-separated multiple apps
+    expect(() => parseCliArgs(["Spotify", "Discord"])).toThrow(
+      "Multiple applications must be comma-separated, not space-separated",
+    );
+
+    // Error on empty comma string
+    expect(() => parseCliArgs([","])).toThrow("No application name specified");
+
+    // Error on multiple space-separated exclude args
+    expect(() => parseCliArgs(["exclude", "Spotify", "Discord"])).toThrow(
+      "Multiple exclude applications must be comma-separated, not space-separated",
+    );
   });
 
   it("parses --include-finder flag", () => {
@@ -156,6 +182,20 @@ describe("cli parser and dispatcher", () => {
     const code = await main([]);
     expect(code).toBe(1);
     expect(consoleErrorSpy).toHaveBeenCalledWith("✖ Error: Unexpected failure");
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("handles arg validation errors in main cleanly", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const code = await main(["Spotify", "Discord"]);
+    expect(code).toBe(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Multiple applications must be comma-separated"),
+    );
 
     consoleErrorSpy.mockRestore();
   });

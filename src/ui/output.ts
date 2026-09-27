@@ -42,7 +42,7 @@ export function renderHelp(): void {
 quitx - Quit running macOS apps from your terminal.
 
 USAGE:
-  $ quitx [options] [app-names...]
+  $ quitx [options] [apps]
 
 OPTIONS:
   -a, --all               Quit all running GUI apps
@@ -71,7 +71,7 @@ EXAMPLES:
   $ quitx config                  Open interactive config manager
   $ quitx exclude                 Open interactive menu to manage excluded apps
   $ quitx --exclude Spotify,Slack Add Spotify and Slack to exclude list
-  $ quitx Slack Discord           Quit specific apps directly
+  $ quitx Slack,Discord           Quit specific apps directly
 `.trim(),
   );
 }
@@ -80,8 +80,7 @@ export function renderVersion(version = "0.1.0"): void {
   console.log(`quitx v${version}`);
 }
 
-export const THANKS_MESSAGE =
-  "\nThanks for using quitx..!\nFor more visit - quitx.js.org";
+export const THANKS_MESSAGE = "\nThanks for using quitx..!";
 
 export function printThanks(options?: {
   json?: boolean | undefined;
