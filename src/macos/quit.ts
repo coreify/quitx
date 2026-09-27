@@ -9,10 +9,19 @@ import { isCurrentTerminalApp } from "./terminal";
 const QUIT_JXA_SCRIPT = buildAppMatcherScript(`
 const bundleId = argv[0] || '';
 const name = argv[1] || '';
+const pidStr = argv[2] || '';
+const targetPid = pidStr ? parseInt(pidStr, 10) : 0;
 const bid = app.bundleIdentifier ? app.bundleIdentifier.js : '';
 const nm = app.localizedName ? app.localizedName.js : '';
-if ((bundleId && bid === bundleId) || (name && nm === name)) {
-  return String(app.terminate());
+const appPid = app.processIdentifier;
+
+if (
+  (targetPid && appPid === targetPid) ||
+  (bundleId && bid === bundleId) ||
+  (name && nm.toLowerCase() === name.toLowerCase())
+) {
+  const res = typeof app.terminate === 'function' ? app.terminate() : app.terminate;
+  return String(res);
 }
 `);
 
@@ -28,10 +37,11 @@ export function defaultDeferredQuitScheduler(
 ): void {
   try {
     const bundleId = app.bundleId ?? "";
+    const pidArg = app.pid ? ` ${shellQuote(String(app.pid))}` : "";
     const cmd =
       force && app.pid
         ? `sleep 0.4 && kill -9 ${app.pid}`
-        : `sleep 0.4 && osascript -l JavaScript -e ${shellQuote(QUIT_JXA_SCRIPT)} ${shellQuote(bundleId)} ${shellQuote(app.name)}`;
+        : `sleep 0.4 && osascript -l JavaScript -e ${shellQuote(QUIT_JXA_SCRIPT)} ${shellQuote(bundleId)} ${shellQuote(app.name)}${pidArg}`;
     const child = spawn("sh", ["-c", cmd], {
       detached: true,
       stdio: "ignore",
@@ -46,11 +56,11 @@ export async function sendQuitSignal(
   app: AppInfo,
   executor?: ScriptExecutor,
 ): Promise<void> {
-  const res = await runJXA(
-    QUIT_JXA_SCRIPT,
-    [app.bundleId ?? "", app.name],
-    executor,
-  );
+  const args = [app.bundleId ?? "", app.name];
+  if (app.pid && app.pid > 0) {
+    args.push(String(app.pid));
+  }
+  const res = await runJXA(QUIT_JXA_SCRIPT, args, executor);
   if (res.trim().toLowerCase() !== "true") {
     throw new Error(`Could not quit "${app.name}"`);
   }
@@ -79,7 +89,8 @@ export async function quitApp(
     return { app, success: true, forced: options.force ?? false };
   }
 
-  const timeoutMs = options.timeoutMs ?? 600;
+  const maxTimeoutMs = options.timeoutMs ?? 2500;
+  const pollIntervalMs = Math.min(150, maxTimeoutMs);
 
   try {
     await sendQuitSignal(app, executor);
@@ -105,11 +116,13 @@ export async function quitApp(
     };
   }
 
-  await sleep(timeoutMs);
-
-  const stillRunning = await isAppRunning(app, executor);
-  if (!stillRunning) {
-    return { app, success: true, forced: false };
+  const start = Date.now();
+  while (Date.now() - start <= maxTimeoutMs) {
+    await sleep(pollIntervalMs);
+    const stillRunning = await isAppRunning(app, executor);
+    if (!stillRunning) {
+      return { app, success: true, forced: false };
+    }
   }
 
   if (options.force) {
@@ -161,25 +174,37 @@ export async function quitApps(
   const results: QuitResult[] = [];
 
   if (otherApps.length > 0) {
-    const timeoutMs = options.timeoutMs ?? 700;
+    const maxTimeoutMs = options.timeoutMs ?? 2500;
+    const pollIntervalMs = Math.min(150, maxTimeoutMs);
 
     await Promise.allSettled(
       otherApps.map((app) => sendQuitSignal(app, executor)),
     );
 
-    await sleep(timeoutMs);
+    const pending = new Map<number | string, AppInfo>();
+    for (let i = 0; i < otherApps.length; i++) {
+      const app = otherApps[i]!;
+      const key = app.pid ?? `idx_${i}_${app.name}`;
+      pending.set(key, app);
+    }
 
-    for (const app of otherApps) {
-      const stillRunning = await isAppRunning(app, executor);
-      if (!stillRunning) {
-        results.push({ app, success: true, forced: false });
-        continue;
+    const start = Date.now();
+    while (pending.size > 0 && Date.now() - start <= maxTimeoutMs) {
+      await sleep(pollIntervalMs);
+      for (const [key, app] of Array.from(pending.entries())) {
+        const stillRunning = await isAppRunning(app, executor);
+        if (!stillRunning) {
+          results.push({ app, success: true, forced: false });
+          pending.delete(key);
+        }
       }
+    }
 
+    for (const app of pending.values()) {
       if (options.force) {
         const killed = forceQuitApp(app);
         if (killed) {
-          await sleep(100);
+          await sleep(150);
           const aliveAfterForce = await isAppRunning(app, executor);
           if (!aliveAfterForce) {
             results.push({ app, success: true, forced: true });
