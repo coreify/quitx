@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `--dry-run` simulation mode:
+  - Simulate quitting applications without sending termination signals or killing processes.
+  - Formatted preview output (`[dry-run] Would quit <app>` / `[dry-run] Would force quit <app>`).
+  - Supported across interactive selector, targeted app list, and `--all` flag.
+- Non-interactive configuration CLI:
+  - `quitx config show [--json]` to view current configuration as formatted list or JSON object.
+  - `quitx config get <key> [--json]` to retrieve individual configuration value.
+  - `quitx config set <key> <value> [--json]` with typed validation for booleans, force mode, and arrays.
+  - `quitx config reset [-y|--yes] [--json]` to restore default configuration non-interactively.
+- Automatic update toggle:
+  - Added `autoUpdate` configuration property (default `true`).
+  - Configurable via interactive menu and `quitx config set autoUpdate <bool>`.
+  - Automatic background 6-hour update checks honor this setting.
 - Package update checking system:
   - Automatic 6-hour interval background check against npm registry (`CHECK_INTERVAL_MS`).
   - Interactive manual update check command `quitx check-update` and `--check-update` flag with 60-second rate-limiting cooldown.
