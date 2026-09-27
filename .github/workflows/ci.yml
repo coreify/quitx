@@ -25,7 +25,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --ignore-scripts
+      - run: npm install --force --ignore-scripts
       - run: npm run build
       - name: Verify non-macOS rejection
         run: |
