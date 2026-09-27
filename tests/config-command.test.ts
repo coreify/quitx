@@ -126,7 +126,9 @@ describe("config command", () => {
     expect(saveSpy).toHaveBeenCalledWith(
       expect.objectContaining({ includeTrash: true }),
     );
-    expect(mockLogSuccess).toHaveBeenCalledWith("Include Trash: enabled");
+    expect(mockLogSuccess).toHaveBeenCalledWith(
+      "Include Empty Trash in list: enabled",
+    );
   });
 
   it("toggles background apps to enabled", async () => {

@@ -69,17 +69,17 @@ async function toggleIncludeFinder(): Promise<void> {
 async function toggleIncludeTrash(): Promise<void> {
   const config = loadConfig();
   const choice = await select({
-    message: `Include Trash (current: ${config.includeTrash ? "enabled" : "disabled"})`,
+    message: `Include Empty Trash in list (current: ${config.includeTrash ? "enabled" : "disabled"})`,
     options: [
       {
         value: "disabled",
         label: "Disabled",
-        hint: "Trash is excluded from the quit list.",
+        hint: "Empty Trash is not shown in the app list.",
       },
       {
         value: "enabled",
         label: "Enabled",
-        hint: "Trash appears in the quit list like an app and empties when quit.",
+        hint: "Shows 'Empty Trash' in list. Quitting it PERMANENTLY deletes all items in Trash (cannot be undone).",
       },
       backOption(),
     ],
@@ -89,7 +89,14 @@ async function toggleIncludeTrash(): Promise<void> {
   if (isCancel(choice) || choice === BACK_VALUE) return;
   config.includeTrash = choice === "enabled";
   saveConfig(config);
-  log.success(`Include Trash: ${config.includeTrash ? "enabled" : "disabled"}`);
+  log.success(
+    `Include Empty Trash in list: ${config.includeTrash ? "enabled" : "disabled"}`,
+  );
+  if (config.includeTrash) {
+    log.warn(
+      "Note: Quitting 'Empty Trash' permanently and irreversibly deletes all files in macOS Trash.",
+    );
+  }
 }
 
 async function toggleIncludeBackground(): Promise<void> {
@@ -404,52 +411,52 @@ export async function configCommand(): Promise<number> {
         {
           value: "quit-mode",
           label: "Quit Mode",
-          hint: `current: ${config.force}`,
+          hint: `current: ${config.force === "normal" ? "Normal quit" : "Force quit"}`,
         },
         {
-          value: "default-select",
-          label: "Default App Selection",
-          hint: `current: ${config.defaultSelectAll ? "select-all" : "deselect-all"}`,
+          value: "background",
+          label: "View background apps",
+          hint: `current: ${config.includeBackground ? "enabled" : "disabled"}`,
         },
         {
           value: "group-background",
-          label: "Group Background Instances",
+          label: "Group background instances",
           hint: `current: ${config.groupBackground ? "enabled" : "disabled"}`,
         },
         {
           value: "never-quit-music",
-          label: "Never Quit Music Apps",
+          label: "Never quit music apps",
           hint: `current: ${config.neverQuitMusic ? "enabled" : "disabled"}`,
         },
         {
+          value: "default-select",
+          label: "Deselect apps by default",
+          hint: `current: ${!config.defaultSelectAll ? "enabled" : "disabled"}`,
+        },
+        {
           value: "finder",
-          label: "Include Finder",
+          label: "Include Finder Windows in list",
           hint: `current: ${config.includeFinder ? "enabled" : "disabled"}`,
         },
         {
           value: "trash",
-          label: "Include Trash",
-          hint: `current: ${config.includeTrash ? "enabled" : "disabled"}`,
-        },
-        {
-          value: "background",
-          label: "Include Background Apps",
-          hint: `current: ${config.includeBackground ? "enabled" : "disabled"}`,
+          label: "Include Empty Trash in list",
+          hint: `current: ${config.includeTrash ? "enabled (empties trash)" : "disabled"}`,
         },
         {
           value: "exclude",
-          label: "Excluded Apps",
+          label: "Manage excluded apps",
           hint: `${config.exclude.length} excluded`,
         },
         {
           value: "custom-music",
-          label: "Custom Music Apps",
+          label: "Manage custom music apps",
           hint: `${config.musicApps.length} custom apps`,
         },
         {
           value: "reset",
-          label: "Reset to Defaults",
-          hint: "restore all settings",
+          label: "Reset all",
+          hint: "restore all settings to defaults",
         },
         { value: "exit", label: "Exit" },
       ],
@@ -461,12 +468,12 @@ export async function configCommand(): Promise<number> {
     }
 
     if (choice === "quit-mode") await toggleQuitMode();
-    if (choice === "default-select") await toggleDefaultSelection();
+    if (choice === "background") await toggleIncludeBackground();
     if (choice === "group-background") await toggleGroupBackground();
     if (choice === "never-quit-music") await toggleNeverQuitMusic();
+    if (choice === "default-select") await toggleDefaultSelection();
     if (choice === "finder") await toggleIncludeFinder();
     if (choice === "trash") await toggleIncludeTrash();
-    if (choice === "background") await toggleIncludeBackground();
     if (choice === "exclude") await manageExcludedApps();
     if (choice === "custom-music") await manageCustomMusicApps();
     if (choice === "reset") resetConfig();

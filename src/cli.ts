@@ -144,7 +144,9 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
 
 export async function main(argv = process.argv.slice(2)): Promise<number> {
   if (!isMacOS()) {
-    console.error("✖ quitx only works on macOS.");
+    console.error(
+      "✖ quitx only works on macOS. Windows and Linux are not supported.",
+    );
     return 1;
   }
   ensureMacOS();
@@ -209,12 +211,19 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
   }
 }
 
-if (
-  process.argv[1] &&
-  (process.argv[1].endsWith("/cli.ts") ||
-    process.argv[1].endsWith("/cli.js") ||
-    process.argv[1].endsWith("/quitx"))
-) {
+const scriptName = process.argv[1]
+  ? process.argv[1].replace(/\\/g, "/").split("/").pop()?.toLowerCase()
+  : "";
+
+const isMain =
+  scriptName === "cli.ts" ||
+  scriptName === "cli.js" ||
+  scriptName === "quitx" ||
+  scriptName === "quitx.cmd" ||
+  scriptName === "quitx.ps1" ||
+  scriptName === "quitx.exe";
+
+if (isMain) {
   main()
     .then((code) => {
       if (code !== 0) {
