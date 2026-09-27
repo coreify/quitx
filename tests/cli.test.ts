@@ -90,8 +90,9 @@ describe("cli parser and dispatcher", () => {
     expect(await main(["-h"])).toBe(0);
     expect(helpSpy).toHaveBeenCalled();
 
+    const expectedVersion = await getPackageVersion();
     expect(await main(["--version"])).toBe(0);
-    expect(versionSpy).toHaveBeenCalledWith("1.0.0");
+    expect(versionSpy).toHaveBeenCalledWith(expectedVersion);
 
     helpSpy.mockRestore();
     versionSpy.mockRestore();
@@ -99,7 +100,8 @@ describe("cli parser and dispatcher", () => {
 
   it("resolves version dynamically from package.json", async () => {
     const v = await getPackageVersion();
-    expect(v).toBe("1.0.0");
+    expect(v).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(v).toBe("1.1.0");
   });
 
   it("dispatches to list command when --list passed", async () => {

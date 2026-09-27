@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.1.0
+
+### Added
+
+- Group background instances option (`groupBackground`, default `true`) to aggregate duplicate background helper processes into one entry with count and terminate all PIDs upon quitting.
+- Never quit music apps protection (`neverQuitMusic`) with hybrid detection: macOS category `public.app-category.music`, bundle IDs, well-known music apps (Spotify, Apple Music, Tidal, Cider, Vox, etc.), and custom music apps.
+- Interactive custom music app management (`musicApps`) in configuration menu.
+- Deselect apps by default option (`defaultSelectAll`) to start interactive picker with no apps pre-selected.
+- Include Empty Trash in list option (`includeTrash`) with explicit warning that quitting permanently and irreversibly deletes macOS Trash.
+- Cleaner, intuitive configuration menu options aligned with native preferences.
+
+### Fixed
+
+- Fixed Windows silent exit: normalized path separators in CLI entry point detection so Windows/Linux platforms cleanly print OS guard error (`✖ quitx only works on macOS. Windows and Linux are not supported.`) with exit code 1.
+- Unified running app discovery across home selector and exclude/music add menus.
+- Handled multi-PID termination cleanly when quitting grouped background instances.
+
 ## 1.0.0
 
 ### Added
