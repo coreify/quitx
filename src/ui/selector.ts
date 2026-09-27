@@ -44,17 +44,39 @@ export function attachQuitAllBehavior(prompt: {
   _value?: string;
   toggleValue?: () => void;
   toggleAll?: () => void;
+  toggleInvert?: () => void;
 }): void {
   let _cursor = prompt.cursor ?? 0;
+  let _value: string[] = prompt.value ? [...prompt.value] : [];
+
   Object.defineProperty(prompt, "cursor", {
     get() {
       return _cursor;
     },
     set(val: number) {
-      if (prompt.value?.includes(SELECT_ALL_VALUE)) {
+      if (_value.includes(SELECT_ALL_VALUE)) {
         _cursor = 0;
       } else {
         _cursor = val;
+      }
+    },
+    configurable: true,
+  });
+
+  Object.defineProperty(prompt, "value", {
+    get() {
+      return _value;
+    },
+    set(val: string[]) {
+      if (!Array.isArray(val)) {
+        _value = [];
+        return;
+      }
+      if (val.includes(SELECT_ALL_VALUE)) {
+        _value = [SELECT_ALL_VALUE];
+        _cursor = 0;
+      } else {
+        _value = val.filter((v) => v !== SELECT_ALL_VALUE);
       }
     },
     configurable: true,
@@ -64,9 +86,6 @@ export function attachQuitAllBehavior(prompt: {
     const cur = prompt.options[prompt.cursor ?? 0]?.value;
     if (!cur) return;
     prompt.value = handleQuitAllToggle(cur, prompt.value ?? []);
-    if (prompt.value.includes(SELECT_ALL_VALUE)) {
-      prompt.cursor = 0;
-    }
   };
 
   prompt.toggleAll = function () {
@@ -74,7 +93,14 @@ export function attachQuitAllBehavior(prompt: {
       prompt.value = [];
     } else {
       prompt.value = [SELECT_ALL_VALUE];
-      prompt.cursor = 0;
+    }
+  };
+
+  prompt.toggleInvert = function () {
+    if (prompt.value?.includes(SELECT_ALL_VALUE)) {
+      prompt.value = [];
+    } else {
+      prompt.value = [SELECT_ALL_VALUE];
     }
   };
 }
@@ -121,6 +147,8 @@ export async function selectApps(
   const origPrompt = proto?.prompt;
   const origToggleValue = proto?.toggleValue;
   const origToggleAll = proto?.toggleAll;
+  const origToggleInvert = (proto as { toggleInvert?: () => void } | undefined)
+    ?.toggleInvert;
 
   let selected: string[] | symbol;
   try {
@@ -132,6 +160,7 @@ export async function selectApps(
         _value?: string;
         toggleValue?: () => void;
         toggleAll?: () => void;
+        toggleInvert?: () => void;
       }) {
         if (this.options?.some((o) => o.value === SELECT_ALL_VALUE)) {
           attachQuitAllBehavior(
@@ -152,6 +181,9 @@ export async function selectApps(
     if (proto && origPrompt) proto.prompt = origPrompt;
     if (proto && origToggleValue) proto.toggleValue = origToggleValue;
     if (proto && origToggleAll) proto.toggleAll = origToggleAll;
+    if (proto && origToggleInvert) {
+      (proto as { toggleInvert?: () => void }).toggleInvert = origToggleInvert;
+    }
   }
 
   if (isCancel(selected) || !Array.isArray(selected)) {

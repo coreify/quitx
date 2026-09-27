@@ -222,4 +222,61 @@ describe("selector ui", () => {
     expect(prompt.value).toEqual([SELECT_ALL_VALUE]);
     expect(prompt.cursor).toBe(0);
   });
+
+  it("attachQuitAllBehavior toggleInvert switches between quit-all and none", () => {
+    interface TestPrompt {
+      options: { value: string; label: string }[];
+      value?: string[];
+      cursor?: number;
+      toggleValue?: () => void;
+      toggleAll?: () => void;
+      toggleInvert?: () => void;
+    }
+
+    const prompt: TestPrompt = {
+      options: [
+        { value: SELECT_ALL_VALUE, label: "Quit all" },
+        { value: "app1", label: "App 1" },
+      ],
+      value: [SELECT_ALL_VALUE],
+      cursor: 0,
+    };
+
+    attachQuitAllBehavior(prompt);
+    prompt.toggleInvert!();
+    expect(prompt.value).toEqual([]);
+
+    prompt.toggleInvert!();
+    expect(prompt.value).toEqual([SELECT_ALL_VALUE]);
+    expect(prompt.cursor).toBe(0);
+  });
+
+  it("attachQuitAllBehavior strictly enforces mutual exclusivity via value setter", () => {
+    interface TestPrompt {
+      options: { value: string; label: string }[];
+      value?: string[];
+      cursor?: number;
+    }
+
+    const prompt: TestPrompt = {
+      options: [
+        { value: SELECT_ALL_VALUE, label: "Quit all" },
+        { value: "app1", label: "App 1" },
+        { value: "app2", label: "App 2" },
+      ],
+      value: [SELECT_ALL_VALUE],
+      cursor: 0,
+    };
+
+    attachQuitAllBehavior(prompt);
+
+    // If an external assignment tries to include both quit-all and individual apps:
+    prompt.value = [SELECT_ALL_VALUE, "app1", "app2"];
+    expect(prompt.value).toEqual([SELECT_ALL_VALUE]);
+    expect(prompt.cursor).toBe(0);
+
+    // Setting individual apps only
+    prompt.value = ["app1", "app2"];
+    expect(prompt.value).toEqual(["app1", "app2"]);
+  });
 });
