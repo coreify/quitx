@@ -21,7 +21,11 @@ async function runCliE2E() {
   assert.equal(typeof list.stdout, "string");
 
   // Test --list --json
-  const listJson = await execFileAsync(process.execPath, [cli, "--list", "--json"]);
+  const listJson = await execFileAsync(process.execPath, [
+    cli,
+    "--list",
+    "--json",
+  ]);
   const parsed = JSON.parse(listJson.stdout.trim());
   assert.ok(Array.isArray(parsed));
 

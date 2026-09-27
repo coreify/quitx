@@ -35,7 +35,9 @@ describe("cli parser and dispatcher", () => {
 
   it("handles help and version flags", async () => {
     const helpSpy = vi.spyOn(output, "renderHelp").mockImplementation(() => {});
-    const versionSpy = vi.spyOn(output, "renderVersion").mockImplementation(() => {});
+    const versionSpy = vi
+      .spyOn(output, "renderVersion")
+      .mockImplementation(() => {});
 
     expect(await main(["-h"])).toBe(0);
     expect(helpSpy).toHaveBeenCalled();
@@ -52,7 +54,9 @@ describe("cli parser and dispatcher", () => {
 
     const code = await main(["--list"]);
     expect(code).toBe(0);
-    expect(listSpy).toHaveBeenCalledWith(expect.objectContaining({ list: true }));
+    expect(listSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ list: true }),
+    );
 
     listSpy.mockRestore();
   });
@@ -83,7 +87,9 @@ describe("cli parser and dispatcher", () => {
     vi.spyOn(interactiveCmd, "interactiveCommand").mockRejectedValue(
       new Error("Unexpected failure"),
     );
-    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
 
     const code = await main([]);
     expect(code).toBe(1);

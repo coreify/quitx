@@ -2,12 +2,7 @@ import { isCancel, log, spinner } from "@clack/prompts";
 import { getRunningApps } from "../macos/apps";
 import { quitApps } from "../macos/quit";
 import type { AppInfo, CliOptions } from "../types";
-import {
-  renderResults,
-  showCancel,
-  showIntro,
-  showOutro,
-} from "../ui/output";
+import { renderResults, showCancel, showIntro, showOutro } from "../ui/output";
 import { selectApps, shouldConfirmQuit } from "../ui/selector";
 
 export async function interactiveCommand(
@@ -29,7 +24,9 @@ export async function interactiveCommand(
   });
 
   if (!options.json) {
-    s.stop(`Found ${apps.length} running ${apps.length === 1 ? "app" : "apps"}`);
+    s.stop(
+      `Found ${apps.length} running ${apps.length === 1 ? "app" : "apps"}`,
+    );
   }
 
   if (apps.length === 0) {
@@ -41,7 +38,7 @@ export async function interactiveCommand(
     return 0;
   }
 
-  let targetApps: AppInfo[] = [];
+  let targetApps: AppInfo[];
 
   // If specific apps were passed via arguments, e.g. `quitx Spotify Discord`
   if (options.apps && options.apps.length > 0) {
@@ -54,7 +51,13 @@ export async function interactiveCommand(
 
     if (targetApps.length === 0) {
       if (options.json) {
-        console.log(JSON.stringify({ quit: 0, results: [], error: "No matching apps running" }, null, 2));
+        console.log(
+          JSON.stringify(
+            { quit: 0, results: [], error: "No matching apps running" },
+            null,
+            2,
+          ),
+        );
       } else {
         log.warn("None of the specified applications are currently running.");
         showOutro("Nothing to quit.");
@@ -64,7 +67,7 @@ export async function interactiveCommand(
   } else {
     // Interactive selector
     const selected = await selectApps(apps);
-    if (isCancel(selected)) {
+    if (typeof selected === "symbol" || isCancel(selected)) {
       showCancel("Cancelled.");
       return 0;
     }
@@ -79,7 +82,11 @@ export async function interactiveCommand(
 
   // Confirmation step (PLAN.md Section 18: 1-3 apps skip confirm, 4+ apps confirm)
   if (!options.yes) {
-    const confirmation = await shouldConfirmQuit(targetApps.length, false, false);
+    const confirmation = await shouldConfirmQuit(
+      targetApps.length,
+      false,
+      false,
+    );
     if (isCancel(confirmation) || confirmation !== true) {
       showCancel("Cancelled.");
       return 0;
@@ -87,7 +94,9 @@ export async function interactiveCommand(
   }
 
   if (!options.json) {
-    s.start(`Quitting ${targetApps.length} ${targetApps.length === 1 ? "app" : "apps"}...`);
+    s.start(
+      `Quitting ${targetApps.length} ${targetApps.length === 1 ? "app" : "apps"}...`,
+    );
   }
 
   const results = await quitApps(targetApps, { force: options.force });

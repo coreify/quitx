@@ -45,6 +45,17 @@ describe("quit service", () => {
     ]);
   });
 
+  it("sendQuitSignal rethrows error when app name script errors and no bundleId", async () => {
+    const mockExecutor = vi
+      .fn()
+      .mockRejectedValue(new Error("Generic osascript error"));
+    const app: AppInfo = { name: "DirectApp" };
+
+    await expect(sendQuitSignal(app, mockExecutor)).rejects.toThrow(
+      "Generic osascript error",
+    );
+  });
+
   it("forceQuitApp calls SIGKILL when pid is present", () => {
     const killSpy = vi.spyOn(process, "kill").mockReturnValue(true as never);
     const app: AppInfo = { name: "TestApp", pid: 98765 };
@@ -55,9 +66,20 @@ describe("quit service", () => {
     killSpy.mockRestore();
   });
 
-  it("forceQuitApp returns false when pid is missing", () => {
-    const app: AppInfo = { name: "NoPidApp" };
+  it("forceQuitApp returns false when pid is missing or <= 0", () => {
+    expect(forceQuitApp({ name: "NoPidApp" })).toBe(false);
+    expect(forceQuitApp({ name: "InvalidPid", pid: 0 })).toBe(false);
+    expect(forceQuitApp({ name: "NegativePid", pid: -1 })).toBe(false);
+  });
+
+  it("forceQuitApp catches errors when process.kill fails", () => {
+    const killSpy = vi.spyOn(process, "kill").mockImplementation(() => {
+      throw new Error("EPERM");
+    });
+    const app: AppInfo = { name: "PermApp", pid: 1111 };
+
     expect(forceQuitApp(app)).toBe(false);
+    killSpy.mockRestore();
   });
 
   it("quitApp succeeds when app exits after quit event", async () => {
@@ -86,32 +108,105 @@ describe("quit service", () => {
     });
 
     const app: AppInfo = { name: "TextEdit" };
-    const res = await quitApp(app, { timeoutMs: 1, force: false }, mockExecutor);
+    const res = await quitApp(
+      app,
+      { timeoutMs: 1, force: false },
+      mockExecutor,
+    );
 
     expect(res.success).toBe(false);
     expect(res.forced).toBe(false);
     expect(res.error).toContain("App is still running");
   });
 
-  it("quitApp escalates to force quit when requested", async () => {
-    let checkCount = 0;
-    const mockExecutor = vi.fn().mockImplementation((cmd, args) => {
-      const script = args[1] as string;
-      if (script.includes("return (exists")) {
-        checkCount++;
-        // First check: still running; after force quit: dead
-        return Promise.resolve({ stdout: checkCount === 1 ? "true" : "false" });
+  it("quitApp handles sendQuitSignal failure and force quit immediately", async () => {
+    let alive = true;
+    const killSpy = vi.spyOn(process, "kill").mockImplementation((pid, sig) => {
+      if (sig === "SIGKILL") {
+        alive = false;
+        return true as never;
       }
-      return Promise.resolve({ stdout: "" });
+      if (sig === 0) {
+        if (!alive) {
+          const err = new Error("No such process");
+          (err as unknown as { code: string }).code = "ESRCH";
+          throw err;
+        }
+        return true as never;
+      }
+      return true as never;
     });
 
-    const killSpy = vi.spyOn(process, "kill").mockReturnValue(true as never);
+    const mockExecutor = vi.fn().mockRejectedValue(new Error("Send failed"));
+    const app: AppInfo = { name: "ErrorApp", pid: 4444 };
+
+    const res = await quitApp(app, { timeoutMs: 1, force: true }, mockExecutor);
+    expect(res.success).toBe(true);
+    expect(res.forced).toBe(true);
+    killSpy.mockRestore();
+  });
+
+  it("quitApp handles sendQuitSignal failure without force", async () => {
+    const mockExecutor = vi.fn().mockRejectedValue(new Error("Send failed"));
+    const app: AppInfo = { name: "ErrorApp" };
+
+    const res = await quitApp(
+      app,
+      { timeoutMs: 1, force: false },
+      mockExecutor,
+    );
+    expect(res.success).toBe(false);
+    expect(res.forced).toBe(false);
+    expect(res.error).toBe("Send failed");
+  });
+
+  it("quitApp escalates to force quit when requested", async () => {
+    let alive = true;
+    const killSpy = vi.spyOn(process, "kill").mockImplementation((pid, sig) => {
+      if (sig === "SIGKILL") {
+        alive = false;
+        return true as never;
+      }
+      if (sig === 0) {
+        if (!alive) {
+          const err = new Error("No such process");
+          (err as unknown as { code: string }).code = "ESRCH";
+          throw err;
+        }
+        return true as never;
+      }
+      return true as never;
+    });
+
+    const mockExecutor = vi.fn().mockResolvedValue({ stdout: "" });
     const app: AppInfo = { name: "StubbornApp", pid: 12345 };
 
     const res = await quitApp(app, { timeoutMs: 1, force: true }, mockExecutor);
 
     expect(res.success).toBe(true);
     expect(res.forced).toBe(true);
+    killSpy.mockRestore();
+  });
+
+  it("quitApp fails when force quit cannot terminate the process", async () => {
+    const killSpy = vi.spyOn(process, "kill").mockImplementation(() => {
+      const err = new Error("EPERM");
+      (err as unknown as { code: string }).code = "EPERM";
+      throw err;
+    });
+    const mockExecutor = vi.fn().mockImplementation((cmd, args) => {
+      const script = args[1] as string;
+      if (script.includes("return (exists")) {
+        return Promise.resolve({ stdout: "true" });
+      }
+      return Promise.resolve({ stdout: "" });
+    });
+    const app: AppInfo = { name: "Unkillable", pid: 9999 };
+
+    const res = await quitApp(app, { timeoutMs: 1, force: true }, mockExecutor);
+    expect(res.success).toBe(false);
+    expect(res.forced).toBe(true);
+    expect(res.error).toContain("Force quit signal sent");
     killSpy.mockRestore();
   });
 
@@ -132,6 +227,44 @@ describe("quit service", () => {
     const results = await quitApps(apps, { timeoutMs: 1 }, mockExecutor);
     expect(results).toHaveLength(2);
     expect(results.every((r) => r.success)).toBe(true);
+  });
+
+  it("quitApps handles force quit across multiple apps", async () => {
+    let alive = true;
+    const killSpy = vi.spyOn(process, "kill").mockImplementation((pid, sig) => {
+      if (sig === "SIGKILL") {
+        alive = false;
+        return true as never;
+      }
+      if (sig === 0) {
+        if (!alive) {
+          const err = new Error("No such process");
+          (err as unknown as { code: string }).code = "ESRCH";
+          throw err;
+        }
+        return true as never;
+      }
+      return true as never;
+    });
+
+    const mockExecutor = vi.fn().mockImplementation((cmd, args) => {
+      const script = args[1] as string;
+      if (script.includes("return (exists")) {
+        return Promise.resolve({ stdout: alive ? "true" : "false" });
+      }
+      return Promise.resolve({ stdout: "" });
+    });
+
+    const apps: AppInfo[] = [{ name: "ForcedApp", pid: 5555 }];
+    const results = await quitApps(
+      apps,
+      { timeoutMs: 1, force: true },
+      mockExecutor,
+    );
+
+    expect(results[0]?.success).toBe(true);
+    expect(results[0]?.forced).toBe(true);
+    killSpy.mockRestore();
   });
 
   it("quitApps returns empty array if no apps passed", async () => {

@@ -1,5 +1,22 @@
-import * as clack from "@clack/prompts";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mockIntro = vi.fn();
+const mockOutro = vi.fn();
+const mockCancel = vi.fn();
+const mockLogSuccess = vi.fn();
+const mockLogError = vi.fn();
+
+vi.mock("@clack/prompts", () => ({
+  intro: (...args: unknown[]) => mockIntro(...args),
+  outro: (...args: unknown[]) => mockOutro(...args),
+  cancel: (...args: unknown[]) => mockCancel(...args),
+  log: {
+    success: (...args: unknown[]) => mockLogSuccess(...args),
+    error: (...args: unknown[]) => mockLogError(...args),
+  },
+}));
+
+import type { AppInfo, QuitResult } from "../src/types";
 import {
   renderHelp,
   renderList,
@@ -9,13 +26,18 @@ import {
   showIntro,
   showOutro,
 } from "../src/ui/output";
-import type { AppInfo, QuitResult } from "../src/types";
 
 describe("output utilities", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("renders help and version without errors", () => {
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     renderHelp();
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("quitx - Quit"));
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining("quitx - Quit"),
+    );
 
     renderVersion("1.2.3");
     expect(logSpy).toHaveBeenCalledWith("quitx v1.2.3");
@@ -42,41 +64,34 @@ describe("output utilities", () => {
   });
 
   it("renders quit results using clack log", () => {
-    const successSpy = vi.spyOn(clack.log, "success").mockImplementation(() => {});
-    const errorSpy = vi.spyOn(clack.log, "error").mockImplementation(() => {});
-
     const results: QuitResult[] = [
       { app: { name: "App1" }, success: true, forced: false },
       { app: { name: "App2" }, success: true, forced: true },
-      { app: { name: "App3" }, success: false, forced: false, error: "Prompt open" },
+      {
+        app: { name: "App3" },
+        success: false,
+        forced: false,
+        error: "Prompt open",
+      },
     ];
 
     renderResults(results);
 
-    expect(successSpy).toHaveBeenCalledWith("App1");
-    expect(successSpy).toHaveBeenCalledWith("Force quit App2");
-    expect(errorSpy).toHaveBeenCalledWith("Could not quit App3 (Prompt open)");
-
-    successSpy.mockRestore();
-    errorSpy.mockRestore();
+    expect(mockLogSuccess).toHaveBeenCalledWith("App1");
+    expect(mockLogSuccess).toHaveBeenCalledWith("Force quit App2");
+    expect(mockLogError).toHaveBeenCalledWith(
+      "Could not quit App3 (Prompt open)",
+    );
   });
 
   it("showIntro, showOutro, and showCancel call clack functions", () => {
-    const introSpy = vi.spyOn(clack, "intro").mockImplementation(() => {});
-    const outroSpy = vi.spyOn(clack, "outro").mockImplementation(() => {});
-    const cancelSpy = vi.spyOn(clack, "cancel").mockImplementation(() => {});
-
     showIntro();
-    expect(introSpy).toHaveBeenCalledWith("quitx");
+    expect(mockIntro).toHaveBeenCalledWith("quitx");
 
     showOutro("Done");
-    expect(outroSpy).toHaveBeenCalledWith("Done");
+    expect(mockOutro).toHaveBeenCalledWith("Done");
 
     showCancel("Aborted");
-    expect(cancelSpy).toHaveBeenCalledWith("Aborted");
-
-    introSpy.mockRestore();
-    outroSpy.mockRestore();
-    cancelSpy.mockRestore();
+    expect(mockCancel).toHaveBeenCalledWith("Aborted");
   });
 });

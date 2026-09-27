@@ -2,12 +2,7 @@ import { isCancel, spinner } from "@clack/prompts";
 import { getRunningApps } from "../macos/apps";
 import { quitApps } from "../macos/quit";
 import type { CliOptions } from "../types";
-import {
-  renderResults,
-  showCancel,
-  showIntro,
-  showOutro,
-} from "../ui/output";
+import { renderResults, showCancel, showIntro, showOutro } from "../ui/output";
 import { shouldConfirmQuit } from "../ui/selector";
 
 export async function allCommand(options: CliOptions = {}): Promise<number> {

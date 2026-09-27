@@ -16,9 +16,7 @@ export function showCancel(message = "Cancelled."): void {
 export function renderResults(results: readonly QuitResult[]): void {
   for (const res of results) {
     if (res.success) {
-      const label = res.forced
-        ? `Force quit ${res.app.name}`
-        : res.app.name;
+      const label = res.forced ? `Force quit ${res.app.name}` : res.app.name;
       log.success(label);
     } else {
       const reason = res.error ? ` (${res.error})` : "";
@@ -39,7 +37,8 @@ export function renderList(apps: readonly AppInfo[], json = false): void {
 }
 
 export function renderHelp(): void {
-  console.log(`
+  console.log(
+    `
 quitx - Quit running macOS apps from your terminal.
 
 USAGE:
@@ -64,7 +63,8 @@ EXAMPLES:
   $ quitx --list                  List currently running GUI apps
   $ quitx --exclude Spotify       Launch selector excluding Spotify
   $ quitx Slack Discord           Quit specific apps directly
-`.trim());
+`.trim(),
+  );
 }
 
 export function renderVersion(version = "0.1.0"): void {

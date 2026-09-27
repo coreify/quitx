@@ -100,12 +100,14 @@ if (
     process.argv[1].endsWith("/cli.js") ||
     process.argv[1].endsWith("/quitx"))
 ) {
-  main().then((code) => {
-    if (code !== 0) {
-      process.exit(code);
-    }
-  }).catch((err: unknown) => {
-    console.error(err);
-    process.exit(1);
-  });
+  main()
+    .then((code) => {
+      if (code !== 0) {
+        process.exit(code);
+      }
+    })
+    .catch((err: unknown) => {
+      console.error(err);
+      process.exit(1);
+    });
 }

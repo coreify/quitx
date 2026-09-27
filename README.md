@@ -21,6 +21,7 @@ quitx
 Select the apps you want to close, hit Enter, and quit them gracefully from one place.
 
 Unlike `killall` or `pkill`, `quitx` does **not** force-terminate processes by default. It sends native AppleScript quit events, allowing applications to:
+
 - Prompt to save unsaved files
 - Persist user preferences and window positions
 - Clean up temporary resources and cache files
@@ -105,18 +106,18 @@ When you run `quitx`, you are presented with an interactive terminal interface:
 
 ## Options
 
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--all` | `-a` | Select and quit all running GUI apps |
-| `--yes` | `-y` | Skip confirmation prompts (auto-confirm) |
-| `--list` | `-l` | List currently running GUI apps and exit |
-| `--force` | `-f` | Send SIGKILL if app doesn't quit cleanly after wait |
-| `--json` | | Output apps or results in JSON format |
-| `--include-finder` | | Include Finder in app list (excluded by default) |
-| `--include-terminal`| | Include current terminal emulator in app list |
-| `--exclude <app>` | | Exclude specific app names or bundle IDs |
-| `--help` | `-h` | Show help and available options |
-| `--version` | `-v` | Show version number |
+| Flag                 | Short | Description                                         |
+| -------------------- | ----- | --------------------------------------------------- |
+| `--all`              | `-a`  | Select and quit all running GUI apps                |
+| `--yes`              | `-y`  | Skip confirmation prompts (auto-confirm)            |
+| `--list`             | `-l`  | List currently running GUI apps and exit            |
+| `--force`            | `-f`  | Send SIGKILL if app doesn't quit cleanly after wait |
+| `--json`             |       | Output apps or results in JSON format               |
+| `--include-finder`   |       | Include Finder in app list (excluded by default)    |
+| `--include-terminal` |       | Include current terminal emulator in app list       |
+| `--exclude <app>`    |       | Exclude specific app names or bundle IDs            |
+| `--help`             | `-h`  | Show help and available options                     |
+| `--version`          | `-v`  | Show version number                                 |
 
 ---
 

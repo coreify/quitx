@@ -1,8 +1,4 @@
-import {
-  confirm,
-  isCancel,
-  multiselect,
-} from "@clack/prompts";
+import { confirm, isCancel, multiselect } from "@clack/prompts";
 import type { AppInfo } from "../types";
 
 export const SELECT_ALL_VALUE = "__QUIT_ALL_APPS__";
@@ -20,11 +16,14 @@ export async function selectApps(
       label: "Quit all apps",
       hint: `${apps.length} eligible apps`,
     },
-    ...apps.map((app) => ({
-      value: app.bundleId ?? `${app.name}-${app.pid ?? 0}`,
-      label: app.name,
-      hint: app.bundleId ?? (app.pid ? `PID: ${app.pid}` : undefined),
-    })),
+    ...apps.map((app) => {
+      const hint = app.bundleId ?? (app.pid ? `PID: ${app.pid}` : undefined);
+      return {
+        value: app.bundleId ?? `${app.name}-${app.pid ?? 0}`,
+        label: app.name,
+        ...(hint ? { hint } : {}),
+      };
+    }),
   ];
 
   const selected = await multiselect({
@@ -37,7 +36,7 @@ export async function selectApps(
     return selected;
   }
 
-  const selectedArray = selected as string[];
+  const selectedArray = selected;
   if (selectedArray.length === 0) {
     return [];
   }

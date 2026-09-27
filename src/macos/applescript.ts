@@ -7,7 +7,7 @@ export type ScriptExecutor = (
 
 export async function runAppleScript(
   script: string,
-  executor: ScriptExecutor = execa as unknown as ScriptExecutor,
+  executor: ScriptExecutor = execa,
 ): Promise<string> {
   const { stdout } = await executor("osascript", ["-e", script]);
   return stdout.trim();

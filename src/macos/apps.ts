@@ -27,7 +27,10 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
 
   // Check if output is tab-delimited multi-line format
   if (trimmed.includes("\t") || trimmed.includes("\n")) {
-    const lines = trimmed.split("\n").map((l) => l.trim()).filter(Boolean);
+    const lines = trimmed
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
     const results: AppInfo[] = [];
 
     for (const line of lines) {
@@ -41,7 +44,10 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
 
       const rawPid = parts[2]?.trim();
       const pidNum = rawPid ? parseInt(rawPid, 10) : undefined;
-      const pid = !Number.isNaN(pidNum) && pidNum !== undefined && pidNum > 0 ? pidNum : undefined;
+      const pid =
+        !Number.isNaN(pidNum) && pidNum !== undefined && pidNum > 0
+          ? pidNum
+          : undefined;
 
       results.push({ name, bundleId, pid });
     }
@@ -103,7 +109,10 @@ export function filterApps(
     }
 
     // 4. Exclude user-specified apps
-    if (userExcludes.has(nameLower) || (bundleLower && userExcludes.has(bundleLower))) {
+    if (
+      userExcludes.has(nameLower) ||
+      (bundleLower && userExcludes.has(bundleLower))
+    ) {
       continue;
     }
 
@@ -144,8 +153,8 @@ export function isProcessAlive(pid: number): boolean {
     if (
       typeof error === "object" &&
       error !== null &&
-      "code" in error &&
-      (error as { code: string }).code === "EPERM"
+      (("code" in error && (error as { code: string }).code === "EPERM") ||
+        ("message" in error && (error as Error).message.includes("EPERM")))
     ) {
       return true;
     }
@@ -161,7 +170,11 @@ export async function isAppRunning(
     return isProcessAlive(target);
   }
 
-  if (typeof target === "object" && target.pid !== undefined && target.pid > 0) {
+  if (
+    typeof target === "object" &&
+    target.pid !== undefined &&
+    target.pid > 0
+  ) {
     return isProcessAlive(target.pid);
   }
 

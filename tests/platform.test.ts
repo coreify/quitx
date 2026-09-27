@@ -14,7 +14,11 @@ describe("platform utils", () => {
   });
 
   it("ensureMacOS throws on non-darwin platforms", () => {
-    expect(() => ensureMacOS("linux")).toThrowError("quitx only works on macOS.");
-    expect(() => ensureMacOS("win32")).toThrowError("quitx only works on macOS.");
+    expect(() => ensureMacOS("linux")).toThrowError(
+      "quitx only works on macOS.",
+    );
+    expect(() => ensureMacOS("win32")).toThrowError(
+      "quitx only works on macOS.",
+    );
   });
 });

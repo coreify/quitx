@@ -4,7 +4,9 @@ import type { AppInfo } from "../src/types";
 
 describe("terminal detection", () => {
   it("detects Apple_Terminal", () => {
-    expect(getCurrentTerminalApp({ TERM_PROGRAM: "Apple_Terminal" })).toBe("Terminal");
+    expect(getCurrentTerminalApp({ TERM_PROGRAM: "Apple_Terminal" })).toBe(
+      "Terminal",
+    );
   });
 
   it("detects iTerm.app", () => {
@@ -12,7 +14,9 @@ describe("terminal detection", () => {
   });
 
   it("detects WarpTerminal", () => {
-    expect(getCurrentTerminalApp({ TERM_PROGRAM: "WarpTerminal" })).toBe("Warp");
+    expect(getCurrentTerminalApp({ TERM_PROGRAM: "WarpTerminal" })).toBe(
+      "Warp",
+    );
   });
 
   it("detects Ghostty", () => {
@@ -20,7 +24,9 @@ describe("terminal detection", () => {
   });
 
   it("detects Alacritty", () => {
-    expect(getCurrentTerminalApp({ TERM_PROGRAM: "alacritty" })).toBe("Alacritty");
+    expect(getCurrentTerminalApp({ TERM_PROGRAM: "alacritty" })).toBe(
+      "Alacritty",
+    );
   });
 
   it("detects kitty", () => {
@@ -32,7 +38,9 @@ describe("terminal detection", () => {
   });
 
   it("detects vscode", () => {
-    expect(getCurrentTerminalApp({ TERM_PROGRAM: "vscode" })).toBe("Visual Studio Code");
+    expect(getCurrentTerminalApp({ TERM_PROGRAM: "vscode" })).toBe(
+      "Visual Studio Code",
+    );
   });
 
   it("falls back to TERMINAL_EMULATOR or LC_TERMINAL", () => {

@@ -77,7 +77,12 @@ export function getCurrentTerminalApp(
   }
 
   for (const term of KNOWN_TERMINALS) {
-    if (term.aliases.some((alias) => target === alias || (alias !== "terminal" && target.includes(alias)))) {
+    if (
+      term.aliases.some(
+        (alias) =>
+          target === alias || (alias !== "terminal" && target.includes(alias)),
+      )
+    ) {
       return term.name;
     }
   }
@@ -103,7 +108,10 @@ export function isTerminalApp(
 
   // Check known terminals
   for (const term of KNOWN_TERMINALS) {
-    if (currentTerminal && term.name.toLowerCase() === currentTerminal.toLowerCase()) {
+    if (
+      currentTerminal &&
+      term.name.toLowerCase() === currentTerminal.toLowerCase()
+    ) {
       if (
         appNameLower === term.name.toLowerCase() ||
         (appBundleLower && term.bundleIds.includes(appBundleLower))
@@ -113,10 +121,7 @@ export function isTerminalApp(
     }
 
     // Default terminal emulators to avoid killing terminal sessions
-    if (
-      term.name !== "Visual Studio Code" &&
-      term.name !== "Cursor"
-    ) {
+    if (term.name !== "Visual Studio Code" && term.name !== "Cursor") {
       if (
         appNameLower === term.name.toLowerCase() ||
         (appBundleLower && term.bundleIds.includes(appBundleLower))

@@ -5,7 +5,9 @@ import { isAppRunning } from "./apps";
 
 export function getQuitScript(app: AppInfo): string {
   if (app.bundleId) {
-    const escapedBundle = app.bundleId.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    const escapedBundle = app.bundleId
+      .replace(/\\/g, "\\\\")
+      .replace(/"/g, '\\"');
     return `tell application id "${escapedBundle}" to quit`;
   }
   const escapedName = app.name.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
@@ -54,7 +56,7 @@ export async function quitApp(
   } catch (error: unknown) {
     const errorMsg =
       error instanceof Error ? error.message : "Failed to send quit event";
-    
+
     // If force is requested and normal quit errored, attempt force quit immediately
     if (options.force && app.pid) {
       forceQuitApp(app);
