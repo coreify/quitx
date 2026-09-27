@@ -40,7 +40,7 @@ jobs:
           mkdir -p node_modules/@clack/core node_modules/@clack/prompts node_modules/execa
           echo 'export class MultiSelectPrompt {};' > node_modules/@clack/core/index.js
           echo '{"name":"@clack/core","type":"module","main":"./index.js"}' > node_modules/@clack/core/package.json
-          echo 'export const isCancel = () => false, spinner = () => ({ start: () => {}, stop: () => {} }), log = { success: () => {}, error: () => {}, warn: () => {} }, intro = () => {}, outro = () => {}, confirm = async () => false, cancel = () => {}, multiselect = async () => [];' > node_modules/@clack/prompts/index.js
+          echo 'export const isCancel = () => false, spinner = () => ({ start: () => {}, stop: () => {} }), log = { success: () => {}, error: () => {}, warn: () => {} }, intro = () => {}, outro = () => {}, confirm = async () => false, cancel = () => {}, multiselect = async () => [], select = async () => null;' > node_modules/@clack/prompts/index.js
           echo '{"name":"@clack/prompts","type":"module","main":"./index.js"}' > node_modules/@clack/prompts/package.json
           echo 'export const execa = async () => ({ stdout: "" });' > node_modules/execa/index.js
           echo '{"name":"execa","type":"module","main":"./index.js"}' > node_modules/execa/package.json
