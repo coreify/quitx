@@ -37,15 +37,12 @@ export async function manageExcludeInteractive(): Promise<number> {
   }
 
   if (choice === "add") {
-    const apps = await getRunningApps();
-    const currentSet = new Set(
-      currentConfig.exclude.map((e) => e.toLowerCase().trim()),
-    );
-    const available = apps.filter(
-      (a) =>
-        !currentSet.has(a.name.toLowerCase().trim()) &&
-        !(a.bundleId && currentSet.has(a.bundleId.toLowerCase().trim())),
-    );
+    const available = await getRunningApps({
+      exclude: currentConfig.exclude,
+      includeFinder: currentConfig.includeFinder,
+      includeBackground: currentConfig.includeBackground,
+      groupBackground: currentConfig.groupBackground,
+    });
 
     if (available.length === 0) {
       showOutro("All running apps are already excluded.");

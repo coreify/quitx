@@ -1,4 +1,5 @@
-import type { AppInfo } from "../types";
+import { loadConfig } from "../config";
+import type { AppInfo, QuitxConfig } from "../types";
 import { APPKIT_PREAMBLE, RUNNING_APPS, buildAppMatcherScript } from "./jxa";
 import { runJXA, type ScriptExecutor } from "./osascript";
 
@@ -202,10 +203,11 @@ export async function getRunningApps(
   executor?: ScriptExecutor,
 ): Promise<AppInfo[]> {
   let exec: ScriptExecutor | undefined;
-  let filterOpts: FilterOptions = {};
+  let filterOpts: FilterOptions;
   let includeBackground = false;
 
   if (typeof optionsOrExclude === "function") {
+    filterOpts = {};
     exec = optionsOrExclude;
   } else if (Array.isArray(optionsOrExclude)) {
     filterOpts = { exclude: optionsOrExclude };
@@ -220,6 +222,13 @@ export async function getRunningApps(
     includeBackground = opts.includeBackground ?? false;
     exec = executor;
   } else {
+    const config = loadConfig();
+    filterOpts = {
+      exclude: config.exclude,
+      includeFinder: config.includeFinder,
+      groupBackground: config.groupBackground,
+    };
+    includeBackground = config.includeBackground;
     exec = executor;
   }
 
@@ -228,6 +237,22 @@ export async function getRunningApps(
 
   const apps = parseAppListOutput(stdout);
   return filterApps(apps, filterOpts);
+}
+
+export async function getRunningAppsForConfig(
+  config: QuitxConfig = loadConfig(),
+  options: Partial<GetRunningAppsOptions> = {},
+  executor?: ScriptExecutor,
+): Promise<AppInfo[]> {
+  return getRunningApps(
+    {
+      exclude: options.exclude ?? config.exclude,
+      includeFinder: options.includeFinder ?? config.includeFinder,
+      includeBackground: options.includeBackground ?? config.includeBackground,
+      groupBackground: options.groupBackground ?? config.groupBackground,
+    },
+    executor,
+  );
 }
 
 export function isProcessAlive(pid: number): boolean {
