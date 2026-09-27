@@ -3,23 +3,19 @@ import { runAppleScript, type ScriptExecutor } from "./applescript";
 
 export const APP_DISCOVERY_SCRIPT = `
 tell application "System Events"
-\tset procs to every application process whose background only is false
+\tset names to name of every application process whose background only is false
+\tset bundles to bundle identifier of every application process whose background only is false
+\tset pids to unix id of every application process whose background only is false
 \tset outList to {}
-\trepeat with p in procs
-\t\tset pName to name of p
-\t\tset pBundle to ""
-\t\ttry
-\t\t\tset pBundle to bundle identifier of p
-\t\tend try
-\t\tset pPid to ""
-\t\ttry
-\t\t\tset pPid to unix id of p
-\t\tend try
+\trepeat with i from 1 to count of pids
+\t\tset pName to item i of names
+\t\tset pBundle to item i of bundles
+\t\tset pPid to item i of pids
 \t\tset pDisp to ""
 \t\ttry
-\t\t\tset pDisp to displayed name of (file of p as alias)
+\t\t\tset pDisp to displayed name of (file of (first application process whose unix id is pPid) as alias)
 \t\tend try
-\t\tset end of outList to pName & tab & pBundle & tab & pPid & tab & pDisp
+\t\tset end of outList to (pName as text) & tab & (pBundle as text) & tab & (pPid as text) & tab & (pDisp as text)
 \tend repeat
 \tset AppleScript's text item delimiters to linefeed
 \toutList as text
@@ -81,7 +77,9 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
       let name = rawName;
       const lowerRaw = rawName.toLowerCase();
 
-      if (
+      if (bundleId === "com.googlecode.iterm2" && rawName === "iTerm2") {
+        name = "iTerm2";
+      } else if (
         dispName &&
         dispName.length > 0 &&
         dispName.toLowerCase() !== "electron"

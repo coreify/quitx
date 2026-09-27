@@ -59,6 +59,22 @@ describe("apps parser and filters", () => {
         pid: 5961,
       },
     ]);
+
+    const iTermStdout =
+      "iTerm2\tcom.googlecode.iterm2\t23236\tiTerm.app\nElectron\tcom.trae.app\t22558\tTraeCode.app\n";
+    const iTermApps = parseAppListOutput(iTermStdout);
+    expect(iTermApps).toEqual([
+      {
+        name: "iTerm2",
+        bundleId: "com.googlecode.iterm2",
+        pid: 23236,
+      },
+      {
+        name: "TraeCode",
+        bundleId: "com.trae.app",
+        pid: 22558,
+      },
+    ]);
   });
 
   it("formatDynamicName derives clean title-cased names dynamically without hardcoding", () => {
