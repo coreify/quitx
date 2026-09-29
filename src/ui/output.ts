@@ -42,7 +42,9 @@ export function renderList(apps: readonly AppInfo[], json = false): void {
   }
 
   for (const app of apps) {
-    console.log(app.name);
+    const noWindows =
+      app.windowCount === 0 && !app.isBackground ? " (no windows)" : "";
+    console.log(`${app.name}${noWindows}`);
   }
 }
 
@@ -58,8 +60,12 @@ OPTIONS:
   -a, --all               Quit all running GUI apps
   -y, --yes               Skip confirmation prompts
   -l, --list              List running GUI apps and exit
+  -w, --windowless        Show/quit GUI apps with zero open windows
   -f, --force             Force quit apps (SIGKILL) if normal quit fails
       --dry-run           Simulate quitting without terminating apps
+      --keep <apps>       Exclude apps for this run without modifying config
+      --except <apps>     Alias for --keep
+      --sort <type>       Sort apps by "name" or "memory"
   -b, --background        Include background processes in app list
       --include-finder    Include Finder in the app list
       --include-trash     Include Trash in the app list (empties on quit)
@@ -72,25 +78,33 @@ OPTIONS:
   -v, --version           Show version number
 
 COMMANDS:
+  restart [apps]          Quit and immediately reopen applications
+  stash                   Record running applications and quit them
+  restore                 Reopen applications from the last stash
   config [action]         Manage configuration (show, get, set, reset)
   exclude                 Manage excluded applications interactively
   check-update            Check for package updates
 
 EXAMPLES:
-  $ quitx                         Interactive app selector
+  $ quitx                         Interactive app selector with memory usage
+  $ quitx --windowless            Quit apps running with no open windows
+  $ quitx --windowless -y         Clean up closed-window apps immediately
+  $ quitx --all --keep Spotify    Quit all apps except Spotify (one-time)
+  $ quitx --sort memory           Sort apps by highest RAM consumption
+  $ quitx restart Discord         Restart Discord
+  $ quitx restart Discord,Slack   Restart Discord and Slack
+  $ quitx stash                   Save session and quit running apps
+  $ quitx restore                 Reopen previously stashed apps
   $ quitx --all                   Quit all running apps (with confirmation)
   $ quitx --all --dry-run         Preview quitting all apps without killing them
   $ quitx --all --yes             Quit all running apps immediately
   $ quitx --list                  List currently running GUI apps
-  $ quitx --list --background     List all apps including background processes
-  $ quitx --list --include-finder List apps including Finder
+  $ quitx --list --windowless     List closed-window apps
   $ quitx config                  Open interactive config manager
+  $ quitx config set sortBy memory Set default sort to memory
   $ quitx config show             Print current configuration
-  $ quitx config set force true   Set default quit mode to force
-  $ quitx config get exclude      Print excluded apps list
   $ quitx exclude                 Open interactive menu to manage excluded apps
   $ quitx check-update            Check for package updates
-  $ quitx --exclude Spotify,Slack Add Spotify and Slack to exclude list
   $ quitx Slack,Discord           Quit specific apps directly
 `.trim(),
   );

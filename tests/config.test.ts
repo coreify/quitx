@@ -4,10 +4,13 @@ import { join } from "node:path";
 import {
   addExcludedApps,
   addMusicApps,
+  clearStash,
   loadConfig,
+  loadStash,
   removeExcludedApps,
   removeMusicApps,
   saveConfig,
+  saveStash,
 } from "../src/config";
 
 const TEST_DIR = join(process.cwd(), ".tmp-test-config");
@@ -102,5 +105,21 @@ describe("config storage", () => {
     removeMusicApps(["foobar", "VLC"], TEST_FILE);
     loaded = loadConfig(TEST_FILE);
     expect(loaded.musicApps).toEqual(["Audacity"]);
+  });
+
+  it("handles stash save, load, and clear correctly", () => {
+    const stashFile = join(TEST_DIR, "stash.json");
+    expect(loadStash(stashFile)).toBeNull();
+
+    const data = {
+      timestamp: new Date().toISOString(),
+      apps: [{ name: "Chrome", bundleId: "com.google.Chrome" }],
+    };
+
+    saveStash(data, stashFile);
+    expect(loadStash(stashFile)).toEqual(data);
+
+    clearStash(stashFile);
+    expect(loadStash(stashFile)).toBeNull();
   });
 });

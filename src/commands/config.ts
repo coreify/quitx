@@ -427,6 +427,33 @@ function resetConfig(): void {
   log.success("Config reset to defaults.");
 }
 
+async function toggleSortBy(): Promise<void> {
+  const config = loadConfig();
+  const current = config.sortBy ?? "name";
+  const choice = await select({
+    message: `Default App Sorting (current: ${current})`,
+    options: [
+      {
+        value: "name",
+        label: "Alphabetical (name)",
+        hint: "Sort applications alphabetically by name (A to Z).",
+      },
+      {
+        value: "memory",
+        label: "Memory usage (memory)",
+        hint: "Sort applications with highest RAM usage first.",
+      },
+      backOption(),
+    ],
+    initialValue: current,
+  });
+
+  if (isCancel(choice) || choice === BACK_VALUE) return;
+  config.sortBy = choice as "name" | "memory";
+  saveConfig(config);
+  log.success(`Default sorting set to: ${config.sortBy}`);
+}
+
 export async function configCommand(): Promise<number> {
   showIntro();
 
@@ -487,6 +514,11 @@ export async function configCommand(): Promise<number> {
           hint: `${config.musicApps.length} custom apps`,
         },
         {
+          value: "sort-by",
+          label: "Default App Sorting",
+          hint: `current: ${config.sortBy ?? "name"}`,
+        },
+        {
           value: "reset",
           label: "Reset all",
           hint: "restore all settings to defaults",
@@ -510,6 +542,7 @@ export async function configCommand(): Promise<number> {
     if (choice === "trash") await toggleIncludeTrash();
     if (choice === "exclude") await manageExcludedApps();
     if (choice === "custom-music") await manageCustomMusicApps();
+    if (choice === "sort-by") await toggleSortBy();
     if (choice === "reset") resetConfig();
   }
 
@@ -529,6 +562,7 @@ export const VALID_CONFIG_KEYS = [
   "neverQuitMusic",
   "musicApps",
   "autoUpdate",
+  "sortBy",
 ] as const;
 
 export type ValidConfigKey = (typeof VALID_CONFIG_KEYS)[number];
@@ -651,6 +685,16 @@ export async function handleConfigCli(
         .map((s) => s.trim())
         .filter(Boolean);
       config[key] = items;
+    } else if (key === "sortBy") {
+      const lower = raw.toLowerCase();
+      if (lower === "name" || lower === "memory") {
+        config.sortBy = lower;
+      } else {
+        console.error(
+          `✖ Invalid value for sortBy: "${raw}". Must be "name" or "memory".`,
+        );
+        return 1;
+      }
     }
 
     saveConfig(config);

@@ -34,12 +34,16 @@ export async function interactiveCommand(
 
   const apps = await getRunningApps({
     exclude: config.exclude,
+    keep: options.keep,
+    windowless: options.windowless,
+    sortBy: options.sortBy ?? config.sortBy,
     includeFinder,
     includeTrash,
     includeBackground,
     groupBackground: config.groupBackground,
     neverQuitMusic,
     musicApps: options.musicApps ?? config.musicApps,
+    includeMemory: true,
   });
 
   if (!options.json) {
@@ -52,7 +56,11 @@ export async function interactiveCommand(
     if (options.json) {
       console.log(JSON.stringify({ quit: 0, results: [] }, null, 2));
     } else {
-      showOutro("No running GUI applications found to quit.");
+      showOutro(
+        options.windowless
+          ? "No windowless applications found running."
+          : "No running GUI applications found to quit.",
+      );
       printThanks(options);
     }
     return 0;
@@ -87,6 +95,9 @@ export async function interactiveCommand(
   } else {
     const selected = await selectApps(apps, {
       defaultSelectAll: config.defaultSelectAll,
+      message: options.windowless
+        ? "Apps still running without windows"
+        : "Select apps to quit",
     });
     if (typeof selected === "symbol" || isCancel(selected)) {
       showCancel("Cancelled.");

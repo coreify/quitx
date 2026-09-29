@@ -1,10 +1,17 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { QuitxConfig } from "../types";
+import type { QuitxConfig, StashData } from "../types";
 
 export const CONFIG_DIR = join(homedir(), ".quitx");
 export const CONFIG_FILE = join(CONFIG_DIR, "config.json");
+export const STASH_FILE = join(CONFIG_DIR, "stash.json");
 
 export const DEFAULT_CONFIG: QuitxConfig = {
   exclude: [],
@@ -61,7 +68,7 @@ export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
           ? obj.checkUpdate
           : DEFAULT_CONFIG.autoUpdate;
 
-    return {
+    const result: QuitxConfig = {
       exclude: Array.isArray(obj.exclude) ? (obj.exclude as string[]) : [],
       force:
         obj.force === "force" || obj.force === "normal"
@@ -87,6 +94,12 @@ export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
         : DEFAULT_CONFIG.musicApps,
       autoUpdate: autoUpdateVal,
     };
+
+    if (obj.sortBy === "memory" || obj.sortBy === "name") {
+      result.sortBy = obj.sortBy;
+    }
+
+    return result;
   } catch {
     return { ...DEFAULT_CONFIG, exclude: [], musicApps: [] };
   }
@@ -99,6 +112,42 @@ export function saveConfig(config: QuitxConfig, filePath = CONFIG_FILE): void {
       mkdirSync(dir, { recursive: true });
     }
     writeFileSync(filePath, JSON.stringify(config, null, 2), "utf-8");
+  } catch {
+    //
+  }
+}
+
+export function loadStash(filePath = STASH_FILE): StashData | null {
+  try {
+    if (!existsSync(filePath)) return null;
+    const raw = readFileSync(filePath, "utf-8");
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null) return null;
+    const obj = parsed as Record<string, unknown>;
+    if (!Array.isArray(obj.apps)) return null;
+    return obj as unknown as StashData;
+  } catch {
+    return null;
+  }
+}
+
+export function saveStash(data: StashData, filePath = STASH_FILE): void {
+  try {
+    const dir = join(filePath, "..");
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
+    writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+  } catch {
+    //
+  }
+}
+
+export function clearStash(filePath = STASH_FILE): void {
+  try {
+    if (existsSync(filePath)) {
+      rmSync(filePath, { force: true });
+    }
   } catch {
     //
   }
