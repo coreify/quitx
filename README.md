@@ -66,7 +66,6 @@ quitx --exclude Spotify     # Add apps to persistent exclude list
 | `config`            | Open interactive configuration manager                 |
 | `exclude [apps...]` | Manage excluded applications interactively or add apps |
 
-
 ## License
 
 [MIT](LICENSE)
