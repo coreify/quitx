@@ -1,6 +1,6 @@
 {
   "name": "@coreify/quitx",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "A macOS CLI for viewing running GUI applications and quitting them properly.",
   "type": "module",
   "bin": {
