@@ -201,7 +201,7 @@ export async function restartCommand(
         const { confirm, isCancel: isConfirmCancel } =
           await import("@clack/prompts");
         const shouldForce = await confirm({
-          message: `Could not quit "${app.name}". Force quit to restart? (SIGKILL)`,
+          message: `Could not quit "${app.name}". Force quit to restart?`,
           initialValue: true,
         });
         if (!isConfirmCancel(shouldForce) && shouldForce === true) {

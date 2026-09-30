@@ -61,7 +61,7 @@ OPTIONS:
   -y, --yes               Skip confirmation prompts
   -l, --list              List running GUI apps and exit
   -w, --windowless        Show/quit GUI apps with zero open windows
-  -f, --force             Force quit apps (SIGKILL) if normal quit fails
+  -f, --force             Force quit apps if normal quit fails
       --dry-run           Simulate quitting without terminating apps
       --keep <apps>       Exclude apps for this run without modifying config
       --except <apps>     Alias for --keep

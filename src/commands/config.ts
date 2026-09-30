@@ -25,7 +25,7 @@ async function toggleQuitMode(): Promise<void> {
       {
         value: "force",
         label: "Force Quit",
-        hint: "Immediately kills processes (SIGKILL). Unsaved work will be lost. Use when apps are unresponsive.",
+        hint: "Immediately terminates processes. Unsaved work will be lost. Use when apps are unresponsive.",
       },
       backOption(),
     ],
@@ -463,12 +463,12 @@ async function toggleOnQuitFailure(): Promise<void> {
       {
         value: "prompt",
         label: "Prompt to Force Quit (prompt)",
-        hint: "Ask interactively before force-quitting stubborn apps with SIGKILL.",
+        hint: "Ask interactively before force-quitting stubborn apps.",
       },
       {
         value: "force",
         label: "Auto Force Quit (force)",
-        hint: "Automatically force quit (SIGKILL) if graceful quit fails.",
+        hint: "Automatically force quit if graceful quit fails.",
       },
       {
         value: "error",

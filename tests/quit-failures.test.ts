@@ -102,7 +102,7 @@ describe("handleQuitFailures", () => {
     expect(killSpy).toHaveBeenCalledWith(9001, "SIGKILL");
     expect(out[0]?.success).toBe(false);
     expect(out[0]?.forced).toBe(true);
-    expect(out[0]?.error).toBe("Force quit failed (SIGKILL)");
+    expect(out[0]?.error).toBe("Force quit failed");
     killSpy.mockRestore();
   });
 

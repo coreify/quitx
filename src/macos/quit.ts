@@ -357,7 +357,7 @@ export async function handleQuitFailures(
         delete res.error;
       } else {
         res.forced = true;
-        res.error = "Force quit failed (SIGKILL)";
+        res.error = "Force quit failed";
       }
     }
     return results;
@@ -368,8 +368,8 @@ export async function handleQuitFailures(
     const appNames = failed.map((f) => f.app.name).join(", ");
     const message =
       failed.length === 1
-        ? `Could not quit "${appNames}". Force quit? (SIGKILL)`
-        : `Could not quit ${failed.length} apps (${appNames}). Force quit? (SIGKILL)`;
+        ? `Could not quit "${appNames}". Force quit?`
+        : `Could not quit ${failed.length} apps (${appNames}). Force quit?`;
 
     const shouldForce = await confirm({
       message,
@@ -385,7 +385,7 @@ export async function handleQuitFailures(
           delete res.error;
         } else {
           res.forced = true;
-          res.error = "Force quit failed (SIGKILL)";
+          res.error = "Force quit failed";
         }
       }
     }
