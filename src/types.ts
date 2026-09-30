@@ -6,6 +6,9 @@ export interface AppInfo {
   count?: number | undefined;
   isBackground?: boolean | undefined;
   isMusic?: boolean | undefined;
+  windowCount?: number | undefined;
+  memoryBytes?: number | undefined;
+  memoryFormatted?: string | undefined;
 }
 
 export interface QuitResult {
@@ -14,6 +17,8 @@ export interface QuitResult {
   forced: boolean;
   error?: string | undefined;
 }
+
+export type OnQuitFailureMode = "prompt" | "force" | "error";
 
 export interface QuitxConfig {
   exclude: string[];
@@ -26,6 +31,8 @@ export interface QuitxConfig {
   neverQuitMusic: boolean;
   musicApps: string[];
   autoUpdate: boolean;
+  sortBy?: "name" | "memory" | undefined;
+  onQuitFailure?: OnQuitFailureMode | undefined;
 }
 
 export interface CliOptions {
@@ -52,6 +59,14 @@ export interface CliOptions {
   apps?: string[] | undefined;
   checkUpdate?: boolean | undefined;
   noUpdateCheck?: boolean | undefined;
+  windowless?: boolean | undefined;
+  keep?: string[] | undefined;
+  sortBy?: "name" | "memory" | undefined;
+  command?: "restart" | "stash" | "restore" | undefined;
+  restart?: boolean | undefined;
+  stash?: boolean | undefined;
+  restore?: boolean | undefined;
+  onQuitFailure?: OnQuitFailureMode | undefined;
 }
 
 export interface QuitOptions {
@@ -59,4 +74,14 @@ export interface QuitOptions {
   dryRun?: boolean | undefined;
   timeoutMs?: number | undefined;
   parallel?: boolean | undefined;
+}
+
+export interface StashAppEntry {
+  name: string;
+  bundleId?: string | undefined;
+}
+
+export interface StashData {
+  timestamp: string;
+  apps: StashAppEntry[];
 }

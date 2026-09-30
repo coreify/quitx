@@ -130,4 +130,93 @@ describe("E2E Integration: Features 1, 2 & 3", () => {
       checkForUpdateSpy.mockRestore();
     });
   });
+
+  describe("Feature 4: --keep and --except end-to-end integration", () => {
+    it("respects --keep flag when quitting all apps", async () => {
+      const mockRunning: AppInfo[] = [
+        { name: "Slack", pid: 101 },
+        { name: "Spotify", pid: 102 },
+      ];
+      vi.spyOn(appsModule, "getRunningApps").mockResolvedValue(mockRunning);
+      vi.spyOn(quitModule, "quitApps").mockResolvedValue([]);
+
+      const exitCode = await main(["--all", "--keep", "Spotify", "--yes"]);
+      expect(exitCode).toBe(0);
+      expect(appsModule.getRunningApps).toHaveBeenCalledWith(
+        expect.objectContaining({ keep: ["Spotify"] }),
+      );
+    });
+
+    it("respects --except alias when quitting all apps", async () => {
+      const mockRunning: AppInfo[] = [
+        { name: "Slack", pid: 101 },
+        { name: "Spotify", pid: 102 },
+      ];
+      vi.spyOn(appsModule, "getRunningApps").mockResolvedValue(mockRunning);
+      vi.spyOn(quitModule, "quitApps").mockResolvedValue([]);
+
+      const exitCode = await main(["--all", "--except", "Slack", "--yes"]);
+      expect(exitCode).toBe(0);
+      expect(appsModule.getRunningApps).toHaveBeenCalledWith(
+        expect.objectContaining({ keep: ["Slack"] }),
+      );
+    });
+  });
+
+  describe("Feature 5: --sort memory integration with --list", () => {
+    it("lists apps sorted by memory consumption", async () => {
+      const mockRunning: AppInfo[] = [
+        { name: "LightApp", pid: 1, memoryBytes: 10 * 1024 * 1024 },
+        { name: "HeavyApp", pid: 2, memoryBytes: 500 * 1024 * 1024 },
+      ];
+      vi.spyOn(appsModule, "getRunningApps").mockResolvedValue(mockRunning);
+
+      const exitCode = await main(["--list", "--sort", "memory"]);
+      expect(exitCode).toBe(0);
+      expect(appsModule.getRunningApps).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sortBy: "memory",
+          includeMemory: true,
+        }),
+      );
+    });
+  });
+
+  describe("Feature 6: Stash & Restore CLI integration", () => {
+    it("runs stash --dry-run without saving data", async () => {
+      const saveStashSpy = vi.spyOn(configModule, "saveStash");
+      vi.spyOn(appsModule, "getRunningApps").mockResolvedValue([
+        { name: "Slack", pid: 101 },
+      ]);
+
+      const exitCode = await main(["stash", "--dry-run", "--yes"]);
+      expect(exitCode).toBe(0);
+      expect(saveStashSpy).not.toHaveBeenCalled();
+    });
+
+    it("runs restore --dry-run without clearing stash", async () => {
+      vi.spyOn(configModule, "loadStash").mockReturnValue({
+        timestamp: "2026-01-01",
+        apps: [{ name: "Slack" }],
+      });
+      const clearStashSpy = vi.spyOn(configModule, "clearStash");
+
+      const exitCode = await main(["restore", "--dry-run", "--yes"]);
+      expect(exitCode).toBe(0);
+      expect(clearStashSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Feature 7: Restart CLI integration", () => {
+    it("simulates restart with --dry-run and positional apps without quitting apps", async () => {
+      vi.spyOn(appsModule, "getRunningApps").mockResolvedValue([
+        { name: "Discord", pid: 201 },
+      ]);
+      const quitSpy = vi.spyOn(quitModule, "quitApp");
+
+      const exitCode = await main(["restart", "Discord", "--dry-run", "--yes"]);
+      expect(exitCode).toBe(0);
+      expect(quitSpy).not.toHaveBeenCalled();
+    });
+  });
 });

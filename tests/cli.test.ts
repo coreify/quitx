@@ -73,6 +73,24 @@ describe("cli parser and dispatcher", () => {
     expect(opts2.includeBackground).toBe(true);
   });
 
+  it("parses --on-quit-failure flag", () => {
+    const opts1 = parseCliArgs(["--on-quit-failure", "force"]);
+    expect(opts1.onQuitFailure).toBe("force");
+
+    const opts2 = parseCliArgs(["--on-quit-failure=prompt"]);
+    expect(opts2.onQuitFailure).toBe("prompt");
+
+    const opts3 = parseCliArgs(["--on-quit-failure", "error"]);
+    expect(opts3.onQuitFailure).toBe("error");
+
+    expect(() => parseCliArgs(["--on-quit-failure", "invalid"])).toThrow(
+      /Invalid on-quit-failure option/,
+    );
+    expect(() => parseCliArgs(["--on-quit-failure=invalid"])).toThrow(
+      /Invalid on-quit-failure option/,
+    );
+  });
+
   it("parses --config flag and config subcommand with actions", () => {
     const opts1 = parseCliArgs(["--config"]);
     expect(opts1.manageConfig).toBe(true);
@@ -283,5 +301,81 @@ describe("cli parser and dispatcher", () => {
     expect(checkSpy).not.toHaveBeenCalled();
 
     checkSpy.mockRestore();
+  });
+
+  it("dispatches to restart command when restart specified", async () => {
+    const restartModule = await import("../src/commands/restart");
+    const restartSpy = vi
+      .spyOn(restartModule, "restartCommand")
+      .mockResolvedValue(0);
+
+    const code = await main(["restart", "Discord", "-y"]);
+    expect(code).toBe(0);
+    expect(restartSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: "restart",
+        apps: ["Discord"],
+        yes: true,
+      }),
+    );
+  });
+
+  it("dispatches to stash and restore commands", async () => {
+    const stashModule = await import("../src/commands/stash");
+    const restoreModule = await import("../src/commands/restore");
+    const stashSpy = vi.spyOn(stashModule, "stashCommand").mockResolvedValue(0);
+    const restoreSpy = vi
+      .spyOn(restoreModule, "restoreCommand")
+      .mockResolvedValue(0);
+
+    expect(await main(["stash", "-y"])).toBe(0);
+    expect(stashSpy).toHaveBeenCalled();
+
+    expect(await main(["restore", "-y"])).toBe(0);
+    expect(restoreSpy).toHaveBeenCalled();
+  });
+
+  it("dispatches to exclude and config commands", async () => {
+    const excludeModule = await import("../src/commands/exclude");
+    const configModule = await import("../src/commands/config");
+    const excludeSpy = vi
+      .spyOn(excludeModule, "excludeCommand")
+      .mockResolvedValue(0);
+    const configSpy = vi
+      .spyOn(configModule, "handleConfigCli")
+      .mockResolvedValue(0);
+
+    expect(await main(["exclude", "Warp"])).toBe(0);
+    expect(excludeSpy).toHaveBeenCalled();
+
+    expect(await main(["config", "show"])).toBe(0);
+    expect(configSpy).toHaveBeenCalled();
+  });
+
+  it("rejects non-macOS platforms in main()", async () => {
+    const platformModule = await import("../src/utils/platform");
+    vi.spyOn(platformModule, "isMacOS").mockReturnValue(false);
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const code = await main([]);
+    expect(code).toBe(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("quitx only works on macOS"),
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("parses additional flags: --include-trash, --never-quit-music, --no-update-check", () => {
+    const opts = parseCliArgs([
+      "--include-trash",
+      "--never-quit-music",
+      "--no-update-check",
+    ]);
+    expect(opts.includeTrash).toBe(true);
+    expect(opts.neverQuitMusic).toBe(true);
+    expect(opts.noUpdateCheck).toBe(true);
   });
 });

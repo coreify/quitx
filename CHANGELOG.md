@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.3.0
+
+### Added
+
+- Closed-window apps target (`--windowless` / `-w`):
+  - Identify running GUI applications with zero open visible windows via CoreGraphics window detection.
+  - Safely quit dormant background windowless apps to free system resources.
+- Memory usage metrics & sorting:
+  - Aggregate RSS memory usage per application across all grouped processes.
+  - Interactive multi-select menu displays formatted memory footprints (e.g. `2.4 GB`, `612 MB`).
+  - `--sort memory` CLI flag and `sortBy: "memory"` configuration option to sort running apps descending by memory footprint.
+- One-time exclusions (`--keep <apps>` / `--except <apps>`):
+  - Exclude specified applications from a single command run without altering persistent configuration.
+- Restart command (`quitx restart [apps...]`):
+  - Gracefully terminates targeted applications, waits for process exit, and immediately reopens them.
+  - Supports interactive selection, multi-app comma separated lists, `--force`, and `--dry-run`.
+- Session stash & restore (`quitx stash` & `quitx restore`):
+  - `quitx stash`: Snapshot currently running GUI applications and quit them.
+  - `quitx restore`: Reopen all previously stashed applications and clear the saved stash.
+
 ## 1.2.0
 
 ### Added

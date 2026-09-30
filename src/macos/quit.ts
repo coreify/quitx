@@ -1,7 +1,13 @@
 import { spawn } from "node:child_process";
-import type { AppInfo, QuitOptions, QuitResult } from "../types";
+import type {
+  AppInfo,
+  CliOptions,
+  QuitOptions,
+  QuitResult,
+  QuitxConfig,
+} from "../types";
 import { sleep } from "../utils/sleep";
-import { isAppRunning } from "./apps";
+import { isAppRunning, isProcessAlive } from "./apps";
 import { buildAppMatcherScript } from "./jxa";
 import { runAppleScript, runJXA, type ScriptExecutor } from "./osascript";
 import { isCurrentTerminalApp } from "./terminal";
@@ -100,7 +106,24 @@ export async function sendQuitSignal(
   if (app.pid && app.pid > 0) {
     args.push(String(app.pid));
   }
-  const res = await runJXA(QUIT_JXA_SCRIPT, args, executor);
+  let res: string;
+  try {
+    res = await runJXA(QUIT_JXA_SCRIPT, args, executor);
+  } catch (jxaErr) {
+    try {
+      const asScript =
+        app.bundleId && app.bundleId !== "missing value"
+          ? `tell application id "${app.bundleId}" to quit`
+          : `tell application "${app.name}" to quit`;
+      await runAppleScript(asScript, executor);
+      return;
+    } catch {
+      throw jxaErr instanceof Error
+        ? jxaErr
+        : new Error(`Could not quit "${app.name}"`);
+    }
+  }
+
   if (res.trim().toLowerCase() !== "true") {
     throw new Error(`Could not quit "${app.name}"`);
   }
@@ -153,10 +176,13 @@ export async function quitApp(
   try {
     await sendQuitSignal(app, executor);
   } catch (error: unknown) {
+    if (app.pid && !isProcessAlive(app.pid)) {
+      return { app, success: true, forced: false };
+    }
+
     const errorMsg =
       error instanceof Error ? error.message : "Failed to send quit event";
 
-    // If force is requested and normal quit errored, attempt force quit immediately
     if (options.force && (app.pid || (app.pids && app.pids.length > 0))) {
       forceQuitApp(app);
       await sleep(100);
@@ -302,6 +328,67 @@ export async function quitApps(
       success: true,
       forced: options.force ?? false,
     });
+  }
+
+  return results;
+}
+
+export async function handleQuitFailures(
+  results: QuitResult[],
+  options: CliOptions = {},
+  config?: Partial<QuitxConfig>,
+): Promise<QuitResult[]> {
+  const failed = results.filter((r) => !r.success && !r.forced);
+  if (failed.length === 0 || options.dryRun) {
+    return results;
+  }
+
+  const mode = options.onQuitFailure ?? config?.onQuitFailure ?? "prompt";
+  if (mode === "error") {
+    return results;
+  }
+
+  if (mode === "force") {
+    for (const res of failed) {
+      const killed = forceQuitApp(res.app);
+      if (killed) {
+        res.success = true;
+        res.forced = true;
+        delete res.error;
+      } else {
+        res.forced = true;
+        res.error = "Force quit failed";
+      }
+    }
+    return results;
+  }
+
+  if (mode === "prompt" && !options.yes && !options.json && !options.quiet) {
+    const { confirm, isCancel } = await import("@clack/prompts");
+    const appNames = failed.map((f) => f.app.name).join(", ");
+    const message =
+      failed.length === 1
+        ? `Could not quit "${appNames}". Force quit?`
+        : `Could not quit ${failed.length} apps (${appNames}). Force quit?`;
+
+    const shouldForce = await confirm({
+      message,
+      initialValue: true,
+    });
+
+    if (!isCancel(shouldForce) && shouldForce === true) {
+      for (const res of failed) {
+        const killed = forceQuitApp(res.app);
+        if (killed) {
+          res.success = true;
+          res.forced = true;
+          delete res.error;
+        } else {
+          res.forced = true;
+          res.error = "Force quit failed";
+        }
+      }
+    }
   }
 
   return results;

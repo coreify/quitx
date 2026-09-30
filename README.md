@@ -16,48 +16,17 @@ npm install -g @coreify/quitx
 npx @coreify/quitx
 ```
 
-## Usage
+## Quick Start
 
 ```bash
-quitx                       # Interactive multi-select menu
-quitx Slack,Discord         # Quit specific apps directly
-quitx -a [-y]               # Quit all running apps (-y skips confirm)
-quitx -l [--json]           # List running GUI apps
-quitx -f                    # Force quit (SIGKILL) if graceful exit fails
-quitx config                # Interactive configuration manager
-quitx exclude [apps...]     # View, add, or remove excluded apps
-quitx --exclude Spotify     # Add apps to persistent exclude list
+quitx                  # Interactive picker with RAM usage
+quitx -a               # Quit all running apps
+quitx Slack,Discord    # Quit specific apps
+quitx restart Discord  # Quit and reopen an app
+quitx stash            # Stash running apps and quit
+quitx restore          # Restore stashed session
 ```
-
-## Options
-
-| Option             | Description                                   |
-| ------------------ | --------------------------------------------- |
-| `<apps>`           | Quit specific applications (comma-separated)  |
-| `-a, --all`        | Quit all running GUI apps                     |
-| `-y, --yes`        | Skip confirmation prompts (auto-confirm)      |
-| `-l, --list`       | List running GUI apps and exit                |
-| `-f, --force`      | Force quit (`SIGKILL`) if graceful quit fails |
-| `-b, --background` | Include background processes in app list      |
-| `--include-finder` | Include Finder in app list                    |
-| `--exclude <apps>` | Comma-separated apps to add to exclude list   |
-| `--config`         | Open interactive config manager               |
-| `--json`           | Output data in JSON format                    |
-| `-h, --help`       | Show help information                         |
-| `-v, --version`    | Show version number                           |
-
-## Commands
-
-| Command             | Description                                            |
-| ------------------- | ------------------------------------------------------ |
-| `config`            | Open interactive configuration manager                 |
-| `exclude [apps...]` | Manage excluded applications interactively or add apps |
-
-## Requirements
-
-- macOS
-- Node.js 20+
 
 ## License
 
-[MIT](LICENSE) © [Coreify](https://github.com/coreify)
+[MIT](LICENSE)

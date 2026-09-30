@@ -25,7 +25,7 @@ async function toggleQuitMode(): Promise<void> {
       {
         value: "force",
         label: "Force Quit",
-        hint: "Immediately kills processes (SIGKILL). Unsaved work will be lost. Use when apps are unresponsive.",
+        hint: "Immediately terminates processes. Unsaved work will be lost. Use when apps are unresponsive.",
       },
       backOption(),
     ],
@@ -107,12 +107,12 @@ async function toggleIncludeBackground(): Promise<void> {
       {
         value: "disabled",
         label: "Disabled",
-        hint: "Only shows foreground GUI apps. This is the default and safest option — system daemons stay hidden.",
+        hint: "Only shows open apps. This is the default and safest option — system services stay hidden.",
       },
       {
         value: "enabled",
         label: "Enabled",
-        hint: "Shows ALL application processes including background agents and helpers. Use with caution — quitting system processes can cause instability.",
+        hint: "Shows background apps and helpers. Use with caution — quitting system services can cause instability.",
       },
       backOption(),
     ],
@@ -169,7 +169,7 @@ async function toggleGroupBackground(): Promise<void> {
       {
         value: "disabled",
         label: "Disabled",
-        hint: "Lists each background instance separately with its process ID (PID).",
+        hint: "Lists each background instance separately.",
       },
       backOption(),
     ],
@@ -427,6 +427,65 @@ function resetConfig(): void {
   log.success("Config reset to defaults.");
 }
 
+async function toggleSortBy(): Promise<void> {
+  const config = loadConfig();
+  const current = config.sortBy ?? "name";
+  const choice = await select({
+    message: `Default App Sorting (current: ${current})`,
+    options: [
+      {
+        value: "name",
+        label: "Alphabetical (name)",
+        hint: "Sort applications alphabetically by name (A to Z).",
+      },
+      {
+        value: "memory",
+        label: "Memory usage (memory)",
+        hint: "Sort applications with highest RAM usage first.",
+      },
+      backOption(),
+    ],
+    initialValue: current,
+  });
+
+  if (isCancel(choice) || choice === BACK_VALUE) return;
+  config.sortBy = choice as "name" | "memory";
+  saveConfig(config);
+  log.success(`Default sorting set to: ${config.sortBy}`);
+}
+
+async function toggleOnQuitFailure(): Promise<void> {
+  const config = loadConfig();
+  const current = config.onQuitFailure ?? "prompt";
+  const choice = await select({
+    message: `On Quit Failure Action (current: ${current})`,
+    options: [
+      {
+        value: "prompt",
+        label: "Prompt to Force Quit (prompt)",
+        hint: "Ask interactively before force-quitting stubborn apps.",
+      },
+      {
+        value: "force",
+        label: "Auto Force Quit (force)",
+        hint: "Automatically force quit if graceful quit fails.",
+      },
+      {
+        value: "error",
+        label: "Error Only (error)",
+        hint: "Report error and leave stubborn apps running without prompting.",
+      },
+      backOption(),
+    ],
+    initialValue: current,
+  });
+
+  if (isCancel(choice) || choice === BACK_VALUE) return;
+  config.onQuitFailure = choice as "prompt" | "force" | "error";
+  saveConfig(config);
+  log.success(`On quit failure action set to: ${config.onQuitFailure}`);
+}
+
 export async function configCommand(): Promise<number> {
   showIntro();
 
@@ -487,6 +546,16 @@ export async function configCommand(): Promise<number> {
           hint: `${config.musicApps.length} custom apps`,
         },
         {
+          value: "sort-by",
+          label: "Default App Sorting",
+          hint: `current: ${config.sortBy ?? "name"}`,
+        },
+        {
+          value: "on-quit-failure",
+          label: "On Quit Failure Action",
+          hint: `current: ${config.onQuitFailure ?? "prompt"}`,
+        },
+        {
           value: "reset",
           label: "Reset all",
           hint: "restore all settings to defaults",
@@ -510,6 +579,8 @@ export async function configCommand(): Promise<number> {
     if (choice === "trash") await toggleIncludeTrash();
     if (choice === "exclude") await manageExcludedApps();
     if (choice === "custom-music") await manageCustomMusicApps();
+    if (choice === "sort-by") await toggleSortBy();
+    if (choice === "on-quit-failure") await toggleOnQuitFailure();
     if (choice === "reset") resetConfig();
   }
 
@@ -529,6 +600,8 @@ export const VALID_CONFIG_KEYS = [
   "neverQuitMusic",
   "musicApps",
   "autoUpdate",
+  "sortBy",
+  "onQuitFailure",
 ] as const;
 
 export type ValidConfigKey = (typeof VALID_CONFIG_KEYS)[number];
@@ -651,6 +724,26 @@ export async function handleConfigCli(
         .map((s) => s.trim())
         .filter(Boolean);
       config[key] = items;
+    } else if (key === "sortBy") {
+      const lower = raw.toLowerCase();
+      if (lower === "name" || lower === "memory") {
+        config.sortBy = lower;
+      } else {
+        console.error(
+          `✖ Invalid value for sortBy: "${raw}". Must be "name" or "memory".`,
+        );
+        return 1;
+      }
+    } else if (key === "onQuitFailure") {
+      const lower = raw.toLowerCase();
+      if (lower === "prompt" || lower === "force" || lower === "error") {
+        config.onQuitFailure = lower;
+      } else {
+        console.error(
+          `✖ Invalid value for onQuitFailure: "${raw}". Must be "prompt", "force", or "error".`,
+        );
+        return 1;
+      }
     }
 
     saveConfig(config);

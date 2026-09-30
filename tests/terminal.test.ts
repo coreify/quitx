@@ -119,4 +119,44 @@ describe("terminal detection", () => {
     ).toBe(false);
     expect(isCurrentTerminalApp(iterm, {})).toBe(false);
   });
+
+  it("identifies modern terminal bundle IDs", () => {
+    expect(
+      isTerminalApp({ name: "ghostty", bundleId: "com.mitchellh.ghostty" }),
+    ).toBe(true);
+    expect(isTerminalApp({ name: "alacritty", bundleId: "io.alacritty" })).toBe(
+      true,
+    );
+    expect(
+      isTerminalApp({ name: "kitty", bundleId: "net.kovidgoyal.kitty" }),
+    ).toBe(true);
+    expect(
+      isTerminalApp({ name: "wezterm", bundleId: "com.github.wez.wezterm" }),
+    ).toBe(true);
+    expect(
+      isTerminalApp(
+        { name: "Code", bundleId: "com.microsoft.VSCode" },
+        "Visual Studio Code",
+      ),
+    ).toBe(true);
+    expect(
+      isTerminalApp(
+        {
+          name: "Cursor",
+          bundleId: "com.todesktop.230313mzl4w4u92",
+        },
+        "Cursor",
+      ),
+    ).toBe(true);
+  });
+
+  it("handles case-insensitive matching for custom terminal names", () => {
+    const term: AppInfo = {
+      name: "CustomTerminal",
+      bundleId: "com.custom.term",
+    };
+    expect(isTerminalApp(term, "customterminal")).toBe(true);
+    expect(isTerminalApp(term, "CUSTOMTERMINAL")).toBe(true);
+    expect(isTerminalApp(term, "NonTerm")).toBe(false);
+  });
 });

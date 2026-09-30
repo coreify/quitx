@@ -1,15 +1,30 @@
 import { loadConfig } from "../config";
 import type { AppInfo, QuitxConfig } from "../types";
 import { APPKIT_PREAMBLE, RUNNING_APPS, buildAppMatcherScript } from "./jxa";
+import { enrichAppsWithMemory } from "./memory";
 import { runJXA, type ScriptExecutor } from "./osascript";
 
 export function buildDiscoveryScript(includeBackground = false): string {
   const bg = includeBackground ? "true" : "false";
   return `${APPKIT_PREAMBLE}
+ObjC.import('CoreGraphics');
 function run() {
   const includeBackground = ${bg};
   const Regular = $.NSApplicationActivationPolicyRegular;
   const apps = ${RUNNING_APPS};
+  const winCountByPid = {};
+  try {
+    const list = $.CGWindowListCopyWindowInfo($.kCGWindowListOptionAll, 0);
+    const arr = ObjC.castRefToObject(list);
+    const unwrapped = ObjC.deepUnwrap(arr);
+    for (let i = 0; i < unwrapped.length; i++) {
+      const w = unwrapped[i];
+      if (w.kCGWindowLayer === 0 && w.kCGWindowBounds && w.kCGWindowBounds.Width > 50 && w.kCGWindowBounds.Height > 50 && w.kCGWindowAlpha > 0) {
+        const pid = w.kCGWindowOwnerPID;
+        winCountByPid[pid] = (winCountByPid[pid] || 0) + 1;
+      }
+    }
+  } catch (e) {}
   const lines = [];
   for (let i = 0; i < apps.count; i++) {
     const app = apps.objectAtIndex(i);
@@ -28,7 +43,8 @@ function run() {
         }
       }
     }
-    lines.push(name + '\\t' + bundleId + '\\t' + pid + '\\t' + isBg + '\\t' + isMusic);
+    const winCount = String(winCountByPid[app.processIdentifier] || 0);
+    lines.push(name + '\\t' + bundleId + '\\t' + pid + '\\t' + isBg + '\\t' + isMusic + '\\t' + winCount);
   }
   return lines.join('\\n');
 }`.trim();
@@ -96,6 +112,18 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
       const rawIsMusic = parts[4]?.trim();
       const isMusic = rawIsMusic === "1";
 
+      const rawWinCount = parts[5]?.trim();
+      const winCountNum =
+        rawWinCount !== undefined && rawWinCount.length > 0
+          ? parseInt(rawWinCount, 10)
+          : undefined;
+      const windowCount =
+        !Number.isNaN(winCountNum) &&
+        winCountNum !== undefined &&
+        winCountNum >= 0
+          ? winCountNum
+          : undefined;
+
       let name = rawName;
       if (bundleId && rawName === bundleId) {
         name = formatDynamicName(bundleId);
@@ -107,6 +135,7 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
         pid,
         ...(isBackground ? { isBackground: true } : {}),
         ...(isMusic ? { isMusic: true } : {}),
+        ...(windowCount !== undefined ? { windowCount } : {}),
       });
     }
 
@@ -122,10 +151,20 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
     .map((name) => ({ name }));
 }
 
-export function sortApps(apps: readonly AppInfo[]): AppInfo[] {
-  return [...apps].sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
-  );
+export function sortApps(
+  apps: readonly AppInfo[],
+  sortBy: "name" | "memory" = "name",
+): AppInfo[] {
+  return [...apps].sort((a, b) => {
+    if (sortBy === "memory") {
+      const memA = a.memoryBytes ?? 0;
+      const memB = b.memoryBytes ?? 0;
+      if (memB !== memA) {
+        return memB - memA;
+      }
+    }
+    return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  });
 }
 
 export const KNOWN_MUSIC_BUNDLE_IDS = new Set([
@@ -193,6 +232,9 @@ export function isMusicApp(
 
 export interface FilterOptions {
   exclude?: readonly string[] | undefined;
+  keep?: readonly string[] | undefined;
+  windowless?: boolean | undefined;
+  sortBy?: "name" | "memory" | undefined;
   includeFinder?: boolean | undefined;
   includeTrash?: boolean | undefined;
   groupBackground?: boolean | undefined;
@@ -209,6 +251,8 @@ export function filterApps(
     : (optionsOrExclude as FilterOptions);
 
   const exclude = opts.exclude ?? [];
+  const keep = opts.keep ?? [];
+  const windowless = opts.windowless ?? false;
   const includeFinder = opts.includeFinder ?? false;
   const includeTrash = opts.includeTrash ?? false;
   const groupBackground = opts.groupBackground ?? true;
@@ -216,6 +260,7 @@ export function filterApps(
   const customMusicApps = opts.musicApps ?? [];
 
   const excludeSet = new Set(exclude.map((e) => e.toLowerCase().trim()));
+  const keepSet = new Set(keep.map((k) => k.toLowerCase().trim()));
   const eligible: AppInfo[] = [];
 
   for (const app of apps) {
@@ -247,6 +292,19 @@ export function filterApps(
       (bundleLower && excludeSet.has(bundleLower))
     ) {
       continue;
+    }
+
+    if (keepSet.has(nameLower) || (bundleLower && keepSet.has(bundleLower))) {
+      continue;
+    }
+
+    if (windowless) {
+      if (
+        app.isBackground ||
+        (app.windowCount !== undefined && app.windowCount > 0)
+      ) {
+        continue;
+      }
     }
 
     eligible.push(app);
@@ -287,6 +345,12 @@ export function filterApps(
         } else {
           existing.count = (existing.count ?? 1) + 1;
         }
+        if (app.windowCount !== undefined) {
+          existing.windowCount = (existing.windowCount ?? 0) + app.windowCount;
+        }
+        if (app.memoryBytes !== undefined) {
+          existing.memoryBytes = (existing.memoryBytes ?? 0) + app.memoryBytes;
+        }
       } else {
         const item: AppInfo = { ...app, name: cleanName };
         grouped.set(key, item);
@@ -298,7 +362,10 @@ export function filterApps(
   if (
     includeTrash &&
     !excludeSet.has("trash") &&
-    !excludeSet.has("com.apple.trash")
+    !excludeSet.has("com.apple.trash") &&
+    !keepSet.has("trash") &&
+    !keepSet.has("com.apple.trash") &&
+    !windowless
   ) {
     const hasTrash = result.some(
       (a) =>
@@ -310,17 +377,21 @@ export function filterApps(
     }
   }
 
-  return sortApps(result);
+  return sortApps(result, opts.sortBy);
 }
 
 export interface GetRunningAppsOptions {
-  exclude?: readonly string[];
-  includeFinder?: boolean;
-  includeTrash?: boolean;
-  includeBackground?: boolean;
-  groupBackground?: boolean;
-  neverQuitMusic?: boolean;
-  musicApps?: readonly string[];
+  exclude?: readonly string[] | undefined;
+  keep?: readonly string[] | undefined;
+  windowless?: boolean | undefined;
+  sortBy?: "name" | "memory" | undefined;
+  includeFinder?: boolean | undefined;
+  includeTrash?: boolean | undefined;
+  includeBackground?: boolean | undefined;
+  groupBackground?: boolean | undefined;
+  neverQuitMusic?: boolean | undefined;
+  musicApps?: readonly string[] | undefined;
+  includeMemory?: boolean | undefined;
 }
 
 export async function getRunningApps(
@@ -330,6 +401,7 @@ export async function getRunningApps(
   let exec: ScriptExecutor | undefined;
   let filterOpts: FilterOptions;
   let includeBackground = false;
+  let includeMemory = false;
 
   if (typeof optionsOrExclude === "function") {
     filterOpts = {};
@@ -341,6 +413,9 @@ export async function getRunningApps(
     const opts = optionsOrExclude as GetRunningAppsOptions;
     filterOpts = {
       exclude: opts.exclude ?? [],
+      keep: opts.keep ?? [],
+      windowless: opts.windowless ?? false,
+      sortBy: opts.sortBy,
       includeFinder: opts.includeFinder ?? false,
       includeTrash: opts.includeTrash ?? false,
       groupBackground: opts.groupBackground ?? true,
@@ -348,6 +423,7 @@ export async function getRunningApps(
       musicApps: opts.musicApps ?? [],
     };
     includeBackground = opts.includeBackground ?? false;
+    includeMemory = opts.includeMemory ?? false;
     exec = executor;
   } else {
     const config = loadConfig();
@@ -358,6 +434,7 @@ export async function getRunningApps(
       groupBackground: config.groupBackground,
       neverQuitMusic: config.neverQuitMusic,
       musicApps: config.musicApps,
+      sortBy: config.sortBy,
     };
     includeBackground = config.includeBackground;
     exec = executor;
@@ -367,7 +444,14 @@ export async function getRunningApps(
   const stdout = await runJXA(script, [], exec);
 
   const apps = parseAppListOutput(stdout);
-  return filterApps(apps, filterOpts);
+  const filtered = filterApps(apps, filterOpts);
+
+  if (includeMemory || filterOpts.sortBy === "memory") {
+    await enrichAppsWithMemory(filtered);
+    return sortApps(filtered, filterOpts.sortBy);
+  }
+
+  return filtered;
 }
 
 export async function getRunningAppsForConfig(
@@ -378,12 +462,16 @@ export async function getRunningAppsForConfig(
   return getRunningApps(
     {
       exclude: options.exclude ?? config.exclude,
+      keep: options.keep,
+      windowless: options.windowless,
+      sortBy: options.sortBy ?? config.sortBy,
       includeFinder: options.includeFinder ?? config.includeFinder,
       includeTrash: options.includeTrash ?? config.includeTrash,
       includeBackground: options.includeBackground ?? config.includeBackground,
       groupBackground: options.groupBackground ?? config.groupBackground,
       neverQuitMusic: options.neverQuitMusic ?? config.neverQuitMusic,
       musicApps: options.musicApps ?? config.musicApps,
+      includeMemory: options.includeMemory,
     },
     executor,
   );

@@ -105,6 +105,7 @@ export function attachQuitAllBehavior(prompt: {
 
 export interface SelectAppsOptions {
   defaultSelectAll?: boolean;
+  message?: string;
 }
 
 export async function selectApps(
@@ -133,6 +134,22 @@ export async function selectApps(
         : `PID: ${app.pid}`;
     }
 
+    if (app.memoryFormatted || (app.windowCount === 0 && !app.isBackground)) {
+      const parts: string[] = [];
+      if (app.memoryFormatted) {
+        parts.push(app.memoryFormatted);
+      }
+      if (app.windowCount === 0 && !app.isBackground) {
+        parts.push("no windows");
+      }
+      if (app.count && app.count > 1) {
+        parts.push(`${app.count} instances`);
+      } else if (app.pid && app.isBackground) {
+        parts.push(`PID: ${app.pid}`);
+      }
+      hint = parts.join(" · ");
+    }
+
     const base = app.bundleId ?? app.name;
     const isDup = (bundleCounts.get(base) ?? 0) > 1;
     const value =
@@ -156,7 +173,7 @@ export async function selectApps(
     : [];
 
   const selected = await multiselect({
-    message: "Select apps to quit",
+    message: options.message ?? "Select apps to quit",
     options: appOptions,
     required: false,
     initialValues,

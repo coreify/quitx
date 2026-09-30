@@ -5,6 +5,9 @@ import { handleConfigCli } from "./commands/config";
 import { excludeCommand } from "./commands/exclude";
 import { interactiveCommand } from "./commands/interactive";
 import { listCommand } from "./commands/list";
+import { restartCommand } from "./commands/restart";
+import { restoreCommand } from "./commands/restore";
+import { stashCommand } from "./commands/stash";
 import { loadConfig } from "./config";
 import type { CliOptions } from "./types";
 import {
@@ -50,6 +53,7 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
   const options: CliOptions = {
     apps: [],
     exclude: [],
+    keep: [],
   };
   const rawPositional: string[] = [];
 
@@ -59,7 +63,7 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
 
     if (arg === "--dry-run") {
       options.dryRun = true;
-    } else if (arg === "config") {
+    } else if (arg === "config" && !options.command) {
       options.manageConfig = true;
       const next = args[i + 1];
       if (
@@ -92,8 +96,17 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
           }
         }
       }
-    } else if (arg === "exclude") {
+    } else if (arg === "exclude" && !options.command) {
       options.manageExclude = true;
+    } else if (arg === "restart" && !options.command) {
+      options.command = "restart";
+      options.restart = true;
+    } else if (arg === "stash" && !options.command) {
+      options.command = "stash";
+      options.stash = true;
+    } else if (arg === "restore" && !options.command) {
+      options.command = "restore";
+      options.restore = true;
     } else if (arg === "check-update" || arg === "--check-update") {
       options.checkUpdate = true;
     } else if (arg === "--no-update-check") {
@@ -104,6 +117,8 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
       options.yes = true;
     } else if (arg === "-l" || arg === "--list") {
       options.list = true;
+    } else if (arg === "-w" || arg === "--windowless") {
+      options.windowless = true;
     } else if (arg === "-f" || arg === "--force") {
       options.force = true;
     } else if (arg === "-h" || arg === "--help") {
@@ -140,6 +155,51 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
           .filter(Boolean);
         options.exclude?.push(...split);
       }
+    } else if (arg === "--keep" || arg === "--except") {
+      const next = args[++i];
+      if (next) {
+        const split = next
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        options.keep?.push(...split);
+      }
+    } else if (arg.startsWith("--keep=") || arg.startsWith("--except=")) {
+      const val = arg.split("=").slice(1).join("=");
+      if (val) {
+        const split = val
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        options.keep?.push(...split);
+      }
+    } else if (arg === "--sort" || arg.startsWith("--sort=")) {
+      const isEq = arg.startsWith("--sort=");
+      const val = isEq ? arg.slice("--sort=".length).trim() : args[++i];
+      if (val === "memory" || val === "name") {
+        options.sortBy = val;
+      } else {
+        const usage = isEq ? "--sort=[name|memory]" : "--sort [name|memory]";
+        throw new Error(`Invalid sort option: "${val}". Usage: ${usage}`);
+      }
+    } else if (
+      arg === "--on-quit-failure" ||
+      arg.startsWith("--on-quit-failure=")
+    ) {
+      const isEq = arg.startsWith("--on-quit-failure=");
+      const val = isEq
+        ? arg.slice("--on-quit-failure=".length).trim()
+        : args[++i];
+      if (val === "prompt" || val === "force" || val === "error") {
+        options.onQuitFailure = val;
+      } else {
+        const usage = isEq
+          ? "--on-quit-failure=[prompt|force|error]"
+          : "--on-quit-failure [prompt|force|error]";
+        throw new Error(
+          `Invalid on-quit-failure option: "${val}". Usage: ${usage}`,
+        );
+      }
     } else if (arg.startsWith("-")) {
       continue;
     } else {
@@ -174,6 +234,23 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
         );
       }
       options.exclude?.push(...split);
+    } else if (options.command === "restart" || options.restart) {
+      if (
+        rawPositional.length > 1 &&
+        !rawPositional.some((a) => a.includes(","))
+      ) {
+        throw new Error(
+          'Multiple applications must be comma-separated, not space-separated. Example: quitx restart Slack,Discord. For names with spaces, use quotes: quitx restart "Google Chrome"',
+        );
+      }
+      const combined = rawPositional.join(" ");
+      const split = combined
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      options.apps?.push(...split);
+    } else if (options.command === "stash" || options.command === "restore") {
+      // no positional arguments expected for stash or restore
     } else {
       if (
         rawPositional.length > 1 &&
@@ -409,6 +486,18 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       (options.exclude && options.exclude.length > 0)
     ) {
       return await excludeCommand(options);
+    }
+
+    if (options.command === "restart" || options.restart) {
+      return await restartCommand(options);
+    }
+
+    if (options.command === "stash" || options.stash) {
+      return await stashCommand(options);
+    }
+
+    if (options.command === "restore" || options.restore) {
+      return await restoreCommand(options);
     }
 
     if (options.list) {

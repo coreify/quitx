@@ -13,14 +13,19 @@ export async function listCommand(options: CliOptions = {}): Promise<number> {
 
   const apps = await getRunningApps({
     exclude: config.exclude,
+    keep: options.keep,
+    windowless: options.windowless,
+    sortBy: options.sortBy ?? config.sortBy,
     includeFinder,
     includeTrash,
     includeBackground,
     groupBackground: config.groupBackground,
     neverQuitMusic,
     musicApps: options.musicApps ?? config.musicApps,
+    includeMemory: options.sortBy === "memory" || options.json === true,
   });
 
   renderList(apps, options.json);
+
   return 0;
 }

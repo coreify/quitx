@@ -47,6 +47,7 @@ const fullConfig = (overrides: Partial<QuitxConfig> = {}): QuitxConfig => ({
   neverQuitMusic: false,
   musicApps: [],
   autoUpdate: true,
+  onQuitFailure: "prompt",
   ...overrides,
 });
 
@@ -378,6 +379,29 @@ describe("config command", () => {
     );
   });
 
+  it("toggles on-quit-failure mode to force and handles cancel", async () => {
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(fullConfig());
+    const saveSpy = vi
+      .spyOn(configModule, "saveConfig")
+      .mockImplementation(() => {});
+
+    mockSelect
+      .mockResolvedValueOnce("on-quit-failure")
+      .mockResolvedValueOnce("force")
+      .mockResolvedValueOnce("on-quit-failure")
+      .mockResolvedValueOnce(Symbol("cancel"))
+      .mockResolvedValueOnce("exit");
+
+    const code = await configCommand();
+    expect(code).toBe(0);
+    expect(saveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ onQuitFailure: "force" }),
+    );
+    expect(mockLogSuccess).toHaveBeenCalledWith(
+      "On quit failure action set to: force",
+    );
+  });
+
   describe("handleConfigCli", () => {
     it("delegates to interactive configCommand when no configAction is provided", async () => {
       vi.spyOn(configModule, "loadConfig").mockReturnValue(fullConfig());
@@ -627,6 +651,146 @@ describe("config command", () => {
       );
 
       logSpy.mockRestore();
+    });
+
+    it("handles sortBy get and set with validation and json output", async () => {
+      const saveSpy = vi
+        .spyOn(configModule, "saveConfig")
+        .mockImplementation(() => {});
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      // get sortBy
+      vi.spyOn(configModule, "loadConfig").mockReturnValue(
+        fullConfig({ sortBy: "memory" }),
+      );
+      expect(
+        await handleConfigCli({ configAction: "get", configKey: "sortBy" }),
+      ).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith("memory");
+
+      // get sortBy with --json
+      logSpy.mockClear();
+      expect(
+        await handleConfigCli({
+          configAction: "get",
+          configKey: "sortBy",
+          json: true,
+        }),
+      ).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith(
+        JSON.stringify({ sortBy: "memory" }, null, 2),
+      );
+
+      // set sortBy memory
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "sortBy",
+          configValue: "memory",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ sortBy: "memory" }),
+      );
+
+      // set sortBy name
+      saveSpy.mockClear();
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "sortBy",
+          configValue: "name",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ sortBy: "name" }),
+      );
+
+      // set sortBy invalid
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "sortBy",
+          configValue: "invalid-sort",
+        }),
+      ).toBe(1);
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid value for sortBy: "invalid-sort"'),
+      );
+
+      logSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
+
+    it("handles unknown config action gracefully", async () => {
+      const code = await handleConfigCli({
+        configAction: "unknown" as "show",
+      });
+      expect(code).toBe(0);
+    });
+
+    it("handles invalid force mode in set", async () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const code = await handleConfigCli({
+        configAction: "set",
+        configKey: "force",
+        configValue: "turbo",
+      });
+      expect(code).toBe(1);
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid value for force: "turbo"'),
+      );
+      errorSpy.mockRestore();
+    });
+
+    it("handles onQuitFailure get and set", async () => {
+      vi.spyOn(configModule, "loadConfig").mockReturnValue(
+        fullConfig({ onQuitFailure: "prompt" }),
+      );
+      const saveSpy = vi
+        .spyOn(configModule, "saveConfig")
+        .mockImplementation(() => {});
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      // get onQuitFailure
+      expect(
+        await handleConfigCli({
+          configAction: "get",
+          configKey: "onQuitFailure",
+        }),
+      ).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith("prompt");
+
+      // set onQuitFailure valid
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "onQuitFailure",
+          configValue: "force",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ onQuitFailure: "force" }),
+      );
+
+      // set onQuitFailure invalid
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "onQuitFailure",
+          configValue: "invalid-mode",
+        }),
+      ).toBe(1);
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Invalid value for onQuitFailure: "invalid-mode"',
+        ),
+      );
+
+      logSpy.mockRestore();
+      errorSpy.mockRestore();
     });
   });
 });

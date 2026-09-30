@@ -136,4 +136,73 @@ describe("exclude command", () => {
     expect(removeSpy).toHaveBeenCalledWith(["Spotify"]);
     expect(mockOutro).toHaveBeenCalledWith("Removed 1 apps from exclude list.");
   });
+
+  it("handles viewing empty exclude list", async () => {
+    mockSelect.mockResolvedValue("view");
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(
+      fullConfig({ exclude: [] }),
+    );
+
+    const code = await excludeCommand({});
+    expect(code).toBe(0);
+    expect(mockOutro).toHaveBeenCalledWith(
+      "No apps currently excluded in config.json.",
+    );
+  });
+
+  it("handles interactive add when no running apps are available", async () => {
+    mockSelect.mockResolvedValue("add");
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(fullConfig());
+    vi.spyOn(appsModule, "getRunningApps").mockResolvedValue([]);
+
+    const code = await excludeCommand({});
+    expect(code).toBe(0);
+    expect(mockOutro).toHaveBeenCalledWith(
+      "All running apps are already excluded.",
+    );
+  });
+
+  it("handles cancelled or empty selection during interactive add", async () => {
+    mockSelect.mockResolvedValue("add");
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(fullConfig());
+    vi.spyOn(appsModule, "getRunningApps").mockResolvedValue([
+      { name: "Slack" },
+    ]);
+
+    mockMultiselect.mockResolvedValueOnce(Symbol("cancel"));
+    expect(await excludeCommand({})).toBe(0);
+    expect(mockCancel).toHaveBeenCalledWith("Cancelled.");
+
+    mockMultiselect.mockResolvedValueOnce([]);
+    expect(await excludeCommand({})).toBe(0);
+    expect(mockOutro).toHaveBeenCalledWith("No apps selected.");
+  });
+
+  it("handles remove when exclude list is empty", async () => {
+    mockSelect.mockResolvedValue("remove");
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(
+      fullConfig({ exclude: [] }),
+    );
+
+    const code = await excludeCommand({});
+    expect(code).toBe(0);
+    expect(mockOutro).toHaveBeenCalledWith(
+      "No apps currently in exclude list.",
+    );
+  });
+
+  it("handles cancelled or empty selection during interactive remove", async () => {
+    mockSelect.mockResolvedValue("remove");
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(
+      fullConfig({ exclude: ["Slack"] }),
+    );
+
+    mockMultiselect.mockResolvedValueOnce(Symbol("cancel"));
+    expect(await excludeCommand({})).toBe(0);
+    expect(mockCancel).toHaveBeenCalledWith("Cancelled.");
+
+    mockMultiselect.mockResolvedValueOnce([]);
+    expect(await excludeCommand({})).toBe(0);
+    expect(mockOutro).toHaveBeenCalledWith("No apps selected.");
+  });
 });
