@@ -9,6 +9,7 @@ import {
   parseAppListOutput,
   sortApps,
 } from "../src/macos/apps";
+import type { ScriptExecutor } from "../src/macos/osascript";
 import type { AppInfo } from "../src/types";
 
 describe("apps parser and filters", () => {
@@ -389,5 +390,115 @@ describe("apps parser and filters", () => {
     expect(
       await isAppRunning({ name: "Trash", bundleId: "com.apple.trash" }),
     ).toBe(false);
+  });
+
+  it("isProcessAlive accurately checks PID status", async () => {
+    const { isProcessAlive } = await import("../src/macos/apps");
+    expect(isProcessAlive(process.pid)).toBe(true);
+
+    const killSpy = vi.spyOn(process, "kill").mockImplementation(() => {
+      const err = new Error("ESRCH") as NodeJS.ErrnoException;
+      err.code = "ESRCH";
+      throw err;
+    });
+
+    expect(isProcessAlive(9999999)).toBe(false);
+    killSpy.mockRestore();
+  });
+
+  it("getRunningAppsForConfig delegates to getRunningApps with config defaults", async () => {
+    const { getRunningAppsForConfig } = await import("../src/macos/apps");
+    const mockExecutor: ScriptExecutor = vi.fn().mockResolvedValue({
+      stdout: "Slack\tcom.tinyspeck.slackmacgap\t101\t0\t0\t1",
+    });
+
+    const apps = await getRunningAppsForConfig(
+      {
+        exclude: [],
+        force: "normal",
+        includeFinder: false,
+        includeTrash: false,
+        includeBackground: false,
+        groupBackground: true,
+        defaultSelectAll: true,
+        neverQuitMusic: false,
+        musicApps: [],
+        autoUpdate: true,
+      },
+      {},
+      mockExecutor,
+    );
+
+    expect(apps).toHaveLength(1);
+    expect(apps[0]?.name).toBe("Slack");
+  });
+
+  it("getRunningApps accepts an array of excluded apps or executor directly", async () => {
+    const mockExecutor: ScriptExecutor = vi.fn().mockResolvedValue({
+      stdout:
+        "Slack\tcom.tinyspeck.slackmacgap\t101\t0\t0\t1\nDiscord\tcom.discord\t102\t0\t0\t1",
+    });
+
+    // Called with string array
+    const appsWithExclude = await getRunningApps(["slack"], mockExecutor);
+    expect(appsWithExclude.map((a) => a.name)).toEqual(["Discord"]);
+
+    // Called with executor function as first arg
+    const appsWithExec = await getRunningApps(mockExecutor);
+    expect(appsWithExec.map((a) => a.name)).toEqual(["Discord", "Slack"]);
+  });
+
+  it("filterApps accepts an array of strings as first/second argument variant", () => {
+    const apps: AppInfo[] = [{ name: "Slack" }, { name: "Discord" }];
+    const filtered = filterApps(apps, ["slack"]);
+    expect(filtered.map((a) => a.name)).toEqual(["Discord"]);
+  });
+
+  it("filterApps handles empty apps array safely", () => {
+    expect(filterApps([])).toEqual([]);
+  });
+
+  it("formatDynamicName handles short strings, snake_case, and camelCase", () => {
+    expect(formatDynamicName("a")).toBe("a");
+    expect(formatDynamicName("")).toBe("");
+    expect(formatDynamicName("com.test.audio_player")).toBe("Audio player");
+    expect(formatDynamicName("com.test.audioPlayer")).toBe("Audio Player");
+  });
+
+  it("parseAppListOutput filters out zero or negative PIDs", () => {
+    const stdout = [
+      "AppZero\tcom.app.zero\t0",
+      "AppNeg\tcom.app.neg\t-5",
+      "AppValid\tcom.app.valid\t1234",
+    ].join("\n");
+
+    const apps = parseAppListOutput(stdout);
+    expect(apps.find((a) => a.name === "AppZero")?.pid).toBeUndefined();
+    expect(apps.find((a) => a.name === "AppNeg")?.pid).toBeUndefined();
+    expect(apps.find((a) => a.name === "AppValid")?.pid).toBe(1234);
+  });
+
+  it("parseAppListOutput strips zero-width spaces from app names", () => {
+    const stdout = "App\u200BName\tcom.app.name\t999";
+    const apps = parseAppListOutput(stdout);
+    expect(apps[0]?.name).toBe("AppName");
+  });
+
+  it("isAppRunning handles script error gracefully", async () => {
+    const mockExecutor = vi.fn().mockRejectedValue(new Error("Script failure"));
+    const running = await isAppRunning({ name: "Ghost" }, mockExecutor);
+    expect(running).toBe(false);
+  });
+
+  it("filterApps preserves music apps when neverQuitMusic is explicitly false", () => {
+    const apps: AppInfo[] = [
+      { name: "Music", bundleId: "com.apple.Music", isMusic: true },
+      { name: "Spotify", bundleId: "com.spotify.client" },
+    ];
+    const filtered = filterApps(apps, {
+      neverQuitMusic: false,
+      musicApps: ["Spotify"],
+    });
+    expect(filtered.length).toBe(2);
   });
 });

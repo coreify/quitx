@@ -5,11 +5,31 @@ import { stashCommand } from "../src/commands/stash";
 import { restoreCommand, reopenStashedApp } from "../src/commands/restore";
 import type { AppInfo, StashAppEntry, StashData } from "../src/types";
 
+const mockConfirm = vi.fn<(...args: unknown[]) => Promise<boolean | symbol>>();
+
+vi.mock("@clack/prompts", () => ({
+  intro: vi.fn(),
+  outro: vi.fn(),
+  cancel: vi.fn(),
+  confirm: (...args: unknown[]) => mockConfirm(...args),
+  isCancel: (val: unknown): boolean => typeof val === "symbol",
+  spinner: () => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+  }),
+  log: {
+    warn: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
 describe("Stash & Restore Commands", () => {
   let mockStash: StashData | null = null;
 
   beforeEach(() => {
     mockStash = null;
+    mockConfirm.mockReset();
     vi.spyOn(configModule, "saveStash").mockImplementation((data) => {
       mockStash = data;
     });
@@ -19,9 +39,19 @@ describe("Stash & Restore Commands", () => {
     });
   });
 
-  it("parseCliArgs parses stash and restore commands", () => {
-    expect(parseCliArgs(["stash"]).command).toBe("stash");
-    expect(parseCliArgs(["restore"]).command).toBe("restore");
+  describe("parseCliArgs", () => {
+    it("parses stash and restore commands", () => {
+      expect(parseCliArgs(["stash"]).command).toBe("stash");
+      expect(parseCliArgs(["restore"]).command).toBe("restore");
+    });
+
+    it("parses stash with flags", () => {
+      const opts = parseCliArgs(["stash", "-y", "--dry-run", "--json"]);
+      expect(opts.command).toBe("stash");
+      expect(opts.yes).toBe(true);
+      expect(opts.dryRun).toBe(true);
+      expect(opts.json).toBe(true);
+    });
   });
 
   describe("reopenStashedApp in restore", () => {
@@ -112,6 +142,30 @@ describe("Stash & Restore Commands", () => {
       });
       expect(exitCode).toBe(0);
     });
+
+    it("cancels stash when user rejects confirmation", async () => {
+      const appsModule = await import("../src/macos/apps");
+      vi.spyOn(appsModule, "getRunningApps").mockResolvedValue([
+        { name: "Chrome", pid: 101 },
+      ]);
+      mockConfirm.mockResolvedValue(false);
+
+      const exitCode = await stashCommand({ quiet: true, yes: false });
+      expect(exitCode).toBe(0);
+      expect(mockStash).toBeNull();
+    });
+
+    it("cancels stash when confirmation is aborted with cancel symbol", async () => {
+      const appsModule = await import("../src/macos/apps");
+      vi.spyOn(appsModule, "getRunningApps").mockResolvedValue([
+        { name: "Chrome", pid: 101 },
+      ]);
+      mockConfirm.mockResolvedValue(Symbol("cancel"));
+
+      const exitCode = await stashCommand({ quiet: true, yes: false });
+      expect(exitCode).toBe(0);
+      expect(mockStash).toBeNull();
+    });
   });
 
   describe("restoreCommand", () => {
@@ -172,6 +226,36 @@ describe("Stash & Restore Commands", () => {
       );
 
       expect(exitCode).toBe(0);
+    });
+
+    it("cancels restore when user rejects interactive prompt", async () => {
+      mockStash = {
+        timestamp: new Date().toISOString(),
+        apps: [{ name: "Chrome" }],
+      };
+
+      mockConfirm.mockResolvedValue(false);
+
+      const exitCode = await restoreCommand({ quiet: true, yes: false });
+      expect(exitCode).toBe(0);
+      expect(mockStash).not.toBeNull();
+    });
+
+    it("handles dry-run restore without clearing stash or launching apps", async () => {
+      mockStash = {
+        timestamp: new Date().toISOString(),
+        apps: [{ name: "Chrome" }],
+      };
+
+      const reopenMock = vi.fn().mockResolvedValue(undefined);
+      const exitCode = await restoreCommand(
+        { dryRun: true, yes: true, quiet: true },
+        { reopen: reopenMock },
+      );
+
+      expect(exitCode).toBe(0);
+      expect(reopenMock).not.toHaveBeenCalled();
+      expect(mockStash).not.toBeNull();
     });
   });
 });

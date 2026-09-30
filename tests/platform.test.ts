@@ -21,4 +21,26 @@ describe("platform utils", () => {
       "quitx only works on macOS.",
     );
   });
+
+  it("isMacOS uses process.platform by default", () => {
+    expect(isMacOS()).toBe(process.platform === "darwin");
+  });
+
+  it("ensureMacOS respects default process.platform", () => {
+    if (process.platform === "darwin") {
+      expect(() => ensureMacOS()).not.toThrow();
+    } else {
+      expect(() => ensureMacOS()).toThrowError("quitx only works on macOS.");
+    }
+  });
+
+  it("handles other platform strings correctly", () => {
+    expect(isMacOS("android")).toBe(false);
+    expect(isMacOS("freebsd")).toBe(false);
+    expect(isMacOS("openbsd")).toBe(false);
+    expect(isMacOS("sunos")).toBe(false);
+    expect(() => ensureMacOS("freebsd")).toThrowError(
+      "quitx only works on macOS.",
+    );
+  });
 });

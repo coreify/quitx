@@ -310,4 +310,72 @@ describe("cli commands", () => {
     expect(mockSpinnerStop).toHaveBeenCalledWith("Dry run complete");
     expect(mockOutro).toHaveBeenCalledWith("Done. Would quit 1 of 1 apps.");
   });
+
+  it("allCommand outputs JSON when 0 apps found", async () => {
+    vi.spyOn(appsModule, "getRunningApps").mockResolvedValue([]);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const code = await allCommand({ json: true });
+    expect(code).toBe(0);
+    expect(logSpy).toHaveBeenCalledWith(
+      JSON.stringify({ quit: 0, results: [] }, null, 2),
+    );
+
+    logSpy.mockRestore();
+  });
+
+  it("allCommand shows windowless outro when windowless: true and 0 apps found", async () => {
+    vi.spyOn(appsModule, "getRunningApps").mockResolvedValue([]);
+    const code = await allCommand({ windowless: true });
+    expect(code).toBe(0);
+    expect(mockOutro).toHaveBeenCalledWith(
+      "No running windowless apps found to quit.",
+    );
+  });
+
+  it("interactiveCommand outputs JSON when 0 apps found", async () => {
+    vi.spyOn(appsModule, "getRunningApps").mockResolvedValue([]);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const code = await interactiveCommand({ json: true });
+    expect(code).toBe(0);
+    expect(logSpy).toHaveBeenCalledWith(
+      JSON.stringify({ quit: 0, results: [] }, null, 2),
+    );
+
+    logSpy.mockRestore();
+  });
+
+  it("interactiveCommand matches positional apps by bundleId case-insensitively", async () => {
+    const mockApps: AppInfo[] = [
+      { name: "Browser", bundleId: "com.company.browser" },
+    ];
+    vi.spyOn(appsModule, "getRunningApps").mockResolvedValue(mockApps);
+    const quitSpy = vi
+      .spyOn(quitModule, "quitApps")
+      .mockResolvedValue([{ app: mockApps[0]!, success: true, forced: false }]);
+
+    const code = await interactiveCommand({
+      apps: ["COM.COMPANY.BROWSER"],
+      yes: true,
+    });
+    expect(code).toBe(0);
+    expect(quitSpy).toHaveBeenCalledWith(mockApps, expect.anything());
+  });
+
+  it("listCommand outputs (no windows) hint for windowless apps", async () => {
+    const mockApps: AppInfo[] = [
+      { name: "Preview", windowCount: 0 },
+      { name: "Helper", windowCount: 0, isBackground: true },
+    ];
+    vi.spyOn(appsModule, "getRunningApps").mockResolvedValue(mockApps);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const code = await listCommand({});
+    expect(code).toBe(0);
+    expect(logSpy).toHaveBeenCalledWith("Preview (no windows)");
+    expect(logSpy).toHaveBeenCalledWith("Helper");
+
+    logSpy.mockRestore();
+  });
 });

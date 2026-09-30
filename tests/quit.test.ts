@@ -393,4 +393,73 @@ describe("quit service", () => {
     expect(results[1]?.forced).toBe(true);
     expect(mockExecutor).not.toHaveBeenCalled();
   });
+
+  it("quitApps returns empty array when input is empty", async () => {
+    const results = await quitApps([]);
+    expect(results).toEqual([]);
+  });
+
+  it("sendQuitSignal quits multi-pid grouped instances when at least one succeeds", async () => {
+    let callCount = 0;
+    const mockExecutor: ScriptExecutor = vi.fn().mockImplementation(() => {
+      callCount++;
+      return callCount === 1
+        ? Promise.reject(new Error("fail"))
+        : Promise.resolve({ stdout: "true" });
+    });
+
+    const multiPidApp: AppInfo = {
+      name: "HelperGroup",
+      pids: [1001, 1002],
+    };
+
+    await expect(
+      sendQuitSignal(multiPidApp, mockExecutor),
+    ).resolves.toBeUndefined();
+  });
+
+  it("sendQuitSignal throws on multi-pid grouped instances if all fail", async () => {
+    const mockExecutor: ScriptExecutor = vi
+      .fn()
+      .mockResolvedValue({ stdout: "false" });
+
+    const multiPidApp: AppInfo = {
+      name: "FailingGroup",
+      pids: [2001, 2002],
+    };
+
+    await expect(sendQuitSignal(multiPidApp, mockExecutor)).rejects.toThrow(
+      'Could not quit "FailingGroup"',
+    );
+  });
+
+  it("forceQuitApp kills multiple PIDs and ignores kill errors", () => {
+    const killSpy = vi.spyOn(process, "kill").mockImplementation((pid) => {
+      if (pid === 999) throw new Error("ESRCH");
+      return true;
+    });
+
+    const app: AppInfo = {
+      name: "MultiPidApp",
+      pids: [999, 1000],
+    };
+
+    const result = forceQuitApp(app);
+    expect(result).toBe(true);
+    expect(killSpy).toHaveBeenCalledWith(999, "SIGKILL");
+    expect(killSpy).toHaveBeenCalledWith(1000, "SIGKILL");
+  });
+
+  it("forceQuitApp returns false when all pid kills fail", () => {
+    vi.spyOn(process, "kill").mockImplementation(() => {
+      throw new Error("EPERM");
+    });
+
+    const app: AppInfo = { name: "ProtectedApp", pids: [888] };
+    expect(forceQuitApp(app)).toBe(false);
+  });
+
+  it("forceQuitApp returns false when no pid is present", () => {
+    expect(forceQuitApp({ name: "Ghost" })).toBe(false);
+  });
 });

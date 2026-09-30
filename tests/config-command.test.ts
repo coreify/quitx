@@ -628,5 +628,96 @@ describe("config command", () => {
 
       logSpy.mockRestore();
     });
+
+    it("handles sortBy get and set with validation and json output", async () => {
+      const saveSpy = vi
+        .spyOn(configModule, "saveConfig")
+        .mockImplementation(() => {});
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      // get sortBy
+      vi.spyOn(configModule, "loadConfig").mockReturnValue(
+        fullConfig({ sortBy: "memory" }),
+      );
+      expect(
+        await handleConfigCli({ configAction: "get", configKey: "sortBy" }),
+      ).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith("memory");
+
+      // get sortBy with --json
+      logSpy.mockClear();
+      expect(
+        await handleConfigCli({
+          configAction: "get",
+          configKey: "sortBy",
+          json: true,
+        }),
+      ).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith(
+        JSON.stringify({ sortBy: "memory" }, null, 2),
+      );
+
+      // set sortBy memory
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "sortBy",
+          configValue: "memory",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ sortBy: "memory" }),
+      );
+
+      // set sortBy name
+      saveSpy.mockClear();
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "sortBy",
+          configValue: "name",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ sortBy: "name" }),
+      );
+
+      // set sortBy invalid
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "sortBy",
+          configValue: "invalid-sort",
+        }),
+      ).toBe(1);
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid value for sortBy: "invalid-sort"'),
+      );
+
+      logSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
+
+    it("handles unknown config action gracefully", async () => {
+      const code = await handleConfigCli({
+        configAction: "unknown" as "show",
+      });
+      expect(code).toBe(0);
+    });
+
+    it("handles invalid force mode in set", async () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const code = await handleConfigCli({
+        configAction: "set",
+        configKey: "force",
+        configValue: "turbo",
+      });
+      expect(code).toBe(1);
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid value for force: "turbo"'),
+      );
+      errorSpy.mockRestore();
+    });
   });
 });

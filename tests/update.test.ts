@@ -332,4 +332,144 @@ describe("fetchLatestVersion", () => {
       "Unable to fetch latest version from npm registry",
     );
   });
+
+  it("falls back to secondary registry URL when primary fails", async () => {
+    const { fetchLatestVersion } = await import("../src/update");
+    let callCount = 0;
+    const mockFetcher: typeof fetch = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({ ok: false, status: 500 } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ version: "2.3.4" }),
+      } as Response);
+    });
+
+    const version = await fetchLatestVersion(mockFetcher);
+    expect(version).toBe("2.3.4");
+    expect(callCount).toBe(2);
+  });
+
+  it("skips registry responses with missing or invalid version payload", async () => {
+    const { fetchLatestVersion } = await import("../src/update");
+    let callCount = 0;
+    const mockFetcher: typeof fetch = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ not_a_version: "invalid" }),
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ version: "2.3.5" }),
+      } as Response);
+    });
+
+    const version = await fetchLatestVersion(mockFetcher);
+    expect(version).toBe("2.3.5");
+    expect(callCount).toBe(2);
+  });
+});
+
+describe("update edge cases and environment configuration", () => {
+  it("respects XDG_CACHE_HOME environment variable", () => {
+    const orig = process.env.XDG_CACHE_HOME;
+    try {
+      process.env.XDG_CACHE_HOME = "/custom/xdg/cache";
+      expect(updateCacheDirectory()).toBe("/custom/xdg/cache/quitx");
+    } finally {
+      if (orig) {
+        process.env.XDG_CACHE_HOME = orig;
+      } else {
+        delete process.env.XDG_CACHE_HOME;
+      }
+    }
+  });
+
+  it("readCache sanitizes invalid types and non-objects", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "quitx-cache-types-"));
+    try {
+      const cacheFile = join(tempDir, "update.json");
+      await writeFile(
+        cacheFile,
+        JSON.stringify({
+          checkedAt: "string_not_number",
+          ignoredVersion: "invalid_semver",
+          latestVersion: 12345,
+        }),
+      );
+
+      const cache = await readCache(cacheFile);
+      expect(cache.checkedAt).toBeUndefined();
+      expect(cache.ignoredVersion).toBeUndefined();
+      expect(cache.latestVersion).toBeUndefined();
+
+      // Write array
+      await writeFile(cacheFile, JSON.stringify([1, 2, 3]));
+      expect(await readCache(cacheFile)).toEqual({});
+
+      // Write null
+      await writeFile(cacheFile, "null");
+      expect(await readCache(cacheFile)).toEqual({});
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("writeCache catches filesystem write errors silently", async () => {
+    // Attempt to write to invalid path
+    await expect(
+      writeCache("/dev/null/impossible/path/update.json", {}),
+    ).resolves.toBeUndefined();
+  });
+
+  it("checkUpdateManually returns updateAvailable: false when error occurs", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "quitx-manual-err-"));
+    try {
+      const mockFetcher: typeof fetch = vi
+        .fn()
+        .mockImplementation(() =>
+          Promise.reject(new Error("Registry unavailable")),
+        );
+
+      const res = await checkUpdateManually("1.2.0", {
+        fetcher: mockFetcher,
+        force: true,
+        cacheDirectory: tempDir,
+      });
+
+      expect(res.updateAvailable).toBe(false);
+      expect(res.latestVersion).toBe("1.2.0");
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("checkUpdateManually returns updateAvailable: false when latest version is older or same", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "quitx-manual-old-"));
+    try {
+      const mockFetcher = createMockFetcher("1.0.0");
+
+      const res = await checkUpdateManually("1.5.0", {
+        fetcher: mockFetcher,
+        force: true,
+        cacheDirectory: tempDir,
+      });
+
+      expect(res.updateAvailable).toBe(false);
+      expect(res.latestVersion).toBe("1.0.0");
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("compareVersions handles build metadata and right invalid version", () => {
+    expect(compareVersions("1.0.0+2013", "1.0.0+2014")).toBe(0);
+    expect(compareVersions("1.0.0", "invalid")).toBe(0);
+    expect(compareVersions("invalid", "invalid")).toBe(0);
+  });
 });

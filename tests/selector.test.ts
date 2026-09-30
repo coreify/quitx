@@ -318,4 +318,76 @@ describe("selector ui", () => {
     prompt.value = ["app1", "app2"];
     expect(prompt.value).toEqual(["app1", "app2"]);
   });
+
+  describe("backOption and option hints formatting", () => {
+    it("returns correct backOption structure", async () => {
+      const { backOption } = await import("../src/ui/selector");
+      expect(backOption()).toEqual({
+        value: "back",
+        label: "Back to main menu",
+      });
+    });
+
+    it("formats option hints with memory, windowless status, and instance counts", async () => {
+      const apps: AppInfo[] = [
+        {
+          name: "Chrome",
+          bundleId: "com.chrome",
+          memoryFormatted: "1.2 GB",
+          windowCount: 0,
+          count: 2,
+        },
+        {
+          name: "Notes",
+          bundleId: "com.notes",
+          windowCount: 0,
+        },
+        {
+          name: "Helper",
+          bundleId: "com.helper",
+          isBackground: true,
+          pid: 555,
+        },
+      ];
+
+      mockMultiselect.mockResolvedValue(["com.chrome"]);
+      await selectApps(apps);
+
+      const callArgs = mockMultiselect.mock.calls[0]![0] as {
+        options: { value: string; label: string; hint?: string }[];
+      };
+
+      expect(callArgs.options[0]?.hint).toBe(
+        "1.2 GB · no windows · 2 instances",
+      );
+      expect(callArgs.options[1]?.hint).toBe("no windows");
+      expect(callArgs.options[2]?.hint).toBe("com.helper (PID: 555)");
+    });
+  });
+
+  describe("shouldConfirmQuit", () => {
+    it("returns true when count is 0 or forceYes is true", async () => {
+      expect(await shouldConfirmQuit(0)).toBe(true);
+      expect(await shouldConfirmQuit(10, false, true)).toBe(true);
+    });
+
+    it("returns true for fewer than 4 apps when not isAll", async () => {
+      expect(await shouldConfirmQuit(1, false, false)).toBe(true);
+      expect(await shouldConfirmQuit(3, false, false)).toBe(true);
+    });
+
+    it("prompts user confirmation when isAll is true", async () => {
+      mockConfirm.mockResolvedValueOnce(true);
+      const res = await shouldConfirmQuit(2, true, false);
+      expect(res).toBe(true);
+      expect(mockConfirm).toHaveBeenCalled();
+    });
+
+    it("prompts user confirmation when 4 or more apps targeted", async () => {
+      mockConfirm.mockResolvedValueOnce(false);
+      const res = await shouldConfirmQuit(4, false, false);
+      expect(res).toBe(false);
+      expect(mockConfirm).toHaveBeenCalled();
+    });
+  });
 });

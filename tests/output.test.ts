@@ -130,4 +130,70 @@ describe("output utilities", () => {
     showCancel("Aborted");
     expect(cancel).toHaveBeenCalledWith("Aborted");
   });
+
+  it("renderList includes (no windows) label only for non-background windowless apps", () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const apps: AppInfo[] = [
+      { name: "Preview", windowCount: 0 },
+      { name: "Helper", windowCount: 0, isBackground: true },
+      { name: "Safari", windowCount: 2 },
+    ];
+
+    renderList(apps, false);
+    expect(logSpy).toHaveBeenCalledWith("Preview (no windows)");
+    expect(logSpy).toHaveBeenCalledWith("Helper");
+    expect(logSpy).toHaveBeenCalledWith("Safari");
+
+    logSpy.mockRestore();
+  });
+
+  it("renderResults falls back to app name when error message is missing", () => {
+    const results: QuitResult[] = [
+      { app: { name: "AppX" }, success: false, forced: false },
+    ];
+
+    renderResults(results);
+    expect(log.error).toHaveBeenCalledWith("Could not quit AppX");
+  });
+
+  it("showCancel uses default Cancelled. message when argument is omitted", () => {
+    showCancel();
+    expect(cancel).toHaveBeenCalledWith("Cancelled.");
+  });
+
+  it("renderList with empty apps array prints nothing", () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    renderList([], false);
+    expect(logSpy).not.toHaveBeenCalled();
+    logSpy.mockRestore();
+  });
+
+  it("renderResults with empty results array does not call logger", () => {
+    renderResults([]);
+    expect(log.success).not.toHaveBeenCalled();
+    expect(log.error).not.toHaveBeenCalled();
+  });
+
+  it("renderHelp contains documentation for all major subcommands and options", () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    renderHelp();
+    const output = logSpy.mock.calls[0]?.[0] as string;
+    expect(output).toContain("restart");
+    expect(output).toContain("stash");
+    expect(output).toContain("restore");
+    expect(output).toContain("--keep");
+    expect(output).toContain("--except");
+    expect(output).toContain("--sort");
+    expect(output).toContain("--windowless");
+    expect(output).toContain("config");
+    expect(output).toContain("exclude");
+    logSpy.mockRestore();
+  });
+
+  it("renderVersion logs formatted version prefix", () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    renderVersion("2.5.0");
+    expect(logSpy).toHaveBeenCalledWith("quitx v2.5.0");
+    logSpy.mockRestore();
+  });
 });

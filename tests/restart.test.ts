@@ -8,20 +8,28 @@ import {
 import type { AppInfo } from "../src/types";
 
 describe("Restart Command", () => {
-  it("parseCliArgs parses restart command and target apps", () => {
-    const opts1 = parseCliArgs(["restart", "Discord"]);
-    expect(opts1.command).toBe("restart");
-    expect(opts1.restart).toBe(true);
-    expect(opts1.apps).toEqual(["Discord"]);
+  describe("parseCliArgs", () => {
+    it("parses restart command and target apps", () => {
+      const opts1 = parseCliArgs(["restart", "Discord"]);
+      expect(opts1.command).toBe("restart");
+      expect(opts1.restart).toBe(true);
+      expect(opts1.apps).toEqual(["Discord"]);
 
-    const opts2 = parseCliArgs(["restart", "Discord,Slack", "--force"]);
-    expect(opts2.command).toBe("restart");
-    expect(opts2.apps).toEqual(["Discord", "Slack"]);
-    expect(opts2.force).toBe(true);
+      const opts2 = parseCliArgs(["restart", "Discord,Slack", "--force"]);
+      expect(opts2.command).toBe("restart");
+      expect(opts2.apps).toEqual(["Discord", "Slack"]);
+      expect(opts2.force).toBe(true);
 
-    const opts3 = parseCliArgs(["restart"]);
-    expect(opts3.command).toBe("restart");
-    expect(opts3.apps).toEqual([]);
+      const opts3 = parseCliArgs(["restart"]);
+      expect(opts3.command).toBe("restart");
+      expect(opts3.apps).toEqual([]);
+    });
+
+    it("rejects space-separated app list without commas in restart command", () => {
+      expect(() => parseCliArgs(["restart", "Discord", "Slack"])).toThrow(
+        /Multiple applications must be comma-separated/,
+      );
+    });
   });
 
   describe("reopenApp", () => {
@@ -43,6 +51,12 @@ describe("Restart Command", () => {
       const app: AppInfo = { name: "CustomApp" };
       await reopenApp(app, runner);
       expect(runner).toHaveBeenCalledWith("open", ["-a", "CustomApp"]);
+    });
+
+    it("handles execution failure during reopen", async () => {
+      const runner = vi.fn().mockRejectedValue(new Error("Spawn error"));
+      const app: AppInfo = { name: "FailedApp" };
+      await expect(reopenApp(app, runner)).rejects.toThrow("Spawn error");
     });
   });
 
@@ -71,7 +85,7 @@ describe("Restart Command", () => {
   });
 
   describe("restart execution flows", () => {
-    it("restartCommand quits and reopens target app", async () => {
+    it("quits and reopens target app", async () => {
       const reopenMock = vi.fn().mockResolvedValue(undefined);
       const waitMock = vi.fn().mockResolvedValue(true);
 
@@ -98,6 +112,27 @@ describe("Restart Command", () => {
       expect(reopenMock).toHaveBeenCalledWith(
         expect.objectContaining({ name: "Discord" }),
       );
+    });
+
+    it("supports dry-run mode without terminating or launching apps", async () => {
+      const reopenMock = vi.fn().mockResolvedValue(undefined);
+      const waitMock = vi.fn().mockResolvedValue(true);
+      const appsModule = await import("../src/macos/apps");
+      const quitModule = await import("../src/macos/quit");
+
+      vi.spyOn(appsModule, "getRunningApps").mockResolvedValue([
+        { name: "Discord", bundleId: "com.discord.app", pid: 1234 },
+      ]);
+      const quitSpy = vi.spyOn(quitModule, "quitApp");
+
+      const exitCode = await restartCommand(
+        { apps: ["Discord"], yes: true, dryRun: true, quiet: true },
+        { reopen: reopenMock, wait: waitMock },
+      );
+
+      expect(exitCode).toBe(0);
+      expect(quitSpy).not.toHaveBeenCalled();
+      expect(reopenMock).not.toHaveBeenCalled();
     });
 
     it("handles no running apps found", async () => {
@@ -151,6 +186,55 @@ describe("Restart Command", () => {
 
       expect(exitCode).toBe(0);
       expect(reopenMock).not.toHaveBeenCalled();
+    });
+
+    it("handles interactive selection cancellation", async () => {
+      const appsModule = await import("../src/macos/apps");
+      const selectorModule = await import("../src/ui/selector");
+
+      vi.spyOn(appsModule, "getRunningApps").mockResolvedValue([
+        { name: "Discord", pid: 101 },
+      ]);
+      vi.spyOn(selectorModule, "selectApps").mockResolvedValue(
+        Symbol("cancel"),
+      );
+
+      const exitCode = await restartCommand({ quiet: true });
+      expect(exitCode).toBe(0);
+    });
+
+    it("handles empty selection in interactive restart", async () => {
+      const appsModule = await import("../src/macos/apps");
+      const selectorModule = await import("../src/ui/selector");
+
+      vi.spyOn(appsModule, "getRunningApps").mockResolvedValue([
+        { name: "Discord", pid: 101 },
+      ]);
+      vi.spyOn(selectorModule, "selectApps").mockResolvedValue([]);
+
+      const exitCode = await restartCommand({ quiet: true });
+      expect(exitCode).toBe(0);
+    });
+
+    it("cancels when user rejects confirmation for 4+ apps", async () => {
+      const appsModule = await import("../src/macos/apps");
+      const selectorModule = await import("../src/ui/selector");
+
+      const apps: AppInfo[] = [
+        { name: "App1" },
+        { name: "App2" },
+        { name: "App3" },
+        { name: "App4" },
+      ];
+      vi.spyOn(appsModule, "getRunningApps").mockResolvedValue(apps);
+      vi.spyOn(selectorModule, "shouldConfirmQuit").mockResolvedValue(false);
+
+      const exitCode = await restartCommand({
+        apps: ["App1", "App2", "App3", "App4"],
+        yes: false,
+        quiet: true,
+      });
+      expect(exitCode).toBe(0);
     });
   });
 });
