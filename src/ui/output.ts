@@ -62,11 +62,11 @@ OPTIONS:
   -l, --list              List running GUI apps and exit
   -w, --windowless        Show/quit GUI apps with zero open windows
   -f, --force             Force quit apps if normal quit fails
-      --dry-run           Simulate quitting without terminating apps
+      --dry-run           Simulate quitting without closing apps
       --keep <apps>       Exclude apps for this run without modifying config
       --except <apps>     Alias for --keep
       --sort <type>       Sort apps by "name" or "memory"
-  -b, --background        Include background processes in app list
+  -b, --background        Include background apps in app list
       --include-finder    Include Finder in the app list
       --include-trash     Include Trash in the app list (empties on quit)
       --exclude <apps>    Add apps to persistent exclude list (comma-separated)
@@ -97,9 +97,9 @@ EXAMPLES:
   $ quitx stash                   Save session and quit running apps
   $ quitx restore                 Reopen previously stashed apps
   $ quitx --all                   Quit all running apps (with confirmation)
-  $ quitx --all --dry-run         Preview quitting all apps without killing them
+  $ quitx --all --dry-run         Preview quitting all apps without closing them
   $ quitx --all --yes             Quit all running apps immediately
-  $ quitx --list                  List currently running GUI apps
+  $ quitx --list                  List currently running apps
   $ quitx --list --windowless     List closed-window apps
   $ quitx config                  Open interactive config manager
   $ quitx config set sortBy memory Set default sort to memory

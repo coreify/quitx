@@ -107,12 +107,12 @@ async function toggleIncludeBackground(): Promise<void> {
       {
         value: "disabled",
         label: "Disabled",
-        hint: "Only shows foreground GUI apps. This is the default and safest option — system daemons stay hidden.",
+        hint: "Only shows open apps. This is the default and safest option — system services stay hidden.",
       },
       {
         value: "enabled",
         label: "Enabled",
-        hint: "Shows ALL application processes including background agents and helpers. Use with caution — quitting system processes can cause instability.",
+        hint: "Shows background apps and helpers. Use with caution — quitting system services can cause instability.",
       },
       backOption(),
     ],
@@ -169,7 +169,7 @@ async function toggleGroupBackground(): Promise<void> {
       {
         value: "disabled",
         label: "Disabled",
-        hint: "Lists each background instance separately with its process ID (PID).",
+        hint: "Lists each background instance separately.",
       },
       backOption(),
     ],
