@@ -1,6 +1,7 @@
 export * from "./types";
 export * from "./config";
 export * from "./macos/apps";
+export * from "./macos/memory";
 export * from "./macos/osascript";
 export * from "./macos/quit";
 export * from "./macos/terminal";
@@ -13,4 +14,7 @@ export { interactiveCommand } from "./commands/interactive";
 export { listCommand } from "./commands/list";
 export { excludeCommand, manageExcludeInteractive } from "./commands/exclude";
 export { configCommand } from "./commands/config";
+export { restartCommand } from "./commands/restart";
+export { stashCommand } from "./commands/stash";
+export { restoreCommand } from "./commands/restore";
 export { parseCliArgs, main } from "./cli";

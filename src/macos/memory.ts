@@ -67,7 +67,11 @@ export async function getProcessMemoryMap(
   try {
     const stdout = customRunner
       ? await customRunner()
-      : (await execFileAsync("ps", ["-ax", "-o", "pid,ppid,rss,comm"])).stdout;
+      : (
+          await execFileAsync("ps", ["-ax", "-o", "pid,ppid,rss,comm"], {
+            maxBuffer: 10 * 1024 * 1024,
+          })
+        ).stdout;
     return parsePsMemoryOutput(stdout);
   } catch {
     return { processes: new Map(), children: new Map() };

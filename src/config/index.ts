@@ -9,7 +9,11 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { QuitxConfig, StashData } from "../types";
 
-export const CONFIG_DIR = join(homedir(), ".quitx");
+export function getConfigDir(): string {
+  return process.env.QUITX_DIR || join(homedir(), ".quitx");
+}
+
+export const CONFIG_DIR = getConfigDir();
 export const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 export const STASH_FILE = join(CONFIG_DIR, "stash.json");
 
