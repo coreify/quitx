@@ -173,22 +173,31 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
           .filter(Boolean);
         options.keep?.push(...split);
       }
-    } else if (arg === "--sort") {
-      const next = args[++i];
-      if (next && (next === "memory" || next === "name")) {
-        options.sortBy = next;
-      } else {
-        throw new Error(
-          `Invalid sort option: "${next}". Usage: --sort [name|memory]`,
-        );
-      }
-    } else if (arg.startsWith("--sort=")) {
-      const val = arg.slice("--sort=".length).trim();
+    } else if (arg === "--sort" || arg.startsWith("--sort=")) {
+      const isEq = arg.startsWith("--sort=");
+      const val = isEq ? arg.slice("--sort=".length).trim() : args[++i];
       if (val === "memory" || val === "name") {
         options.sortBy = val;
       } else {
+        const usage = isEq ? "--sort=[name|memory]" : "--sort [name|memory]";
+        throw new Error(`Invalid sort option: "${val}". Usage: ${usage}`);
+      }
+    } else if (
+      arg === "--on-quit-failure" ||
+      arg.startsWith("--on-quit-failure=")
+    ) {
+      const isEq = arg.startsWith("--on-quit-failure=");
+      const val = isEq
+        ? arg.slice("--on-quit-failure=".length).trim()
+        : args[++i];
+      if (val === "prompt" || val === "force" || val === "error") {
+        options.onQuitFailure = val;
+      } else {
+        const usage = isEq
+          ? "--on-quit-failure=[prompt|force|error]"
+          : "--on-quit-failure [prompt|force|error]";
         throw new Error(
-          `Invalid sort option: "${val}". Usage: --sort=[name|memory]`,
+          `Invalid on-quit-failure option: "${val}". Usage: ${usage}`,
         );
       }
     } else if (arg.startsWith("-")) {

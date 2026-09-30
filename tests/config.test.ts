@@ -56,6 +56,7 @@ describe("config storage", () => {
       neverQuitMusic: false,
       autoUpdate: true,
       musicApps: [],
+      onQuitFailure: "prompt",
     });
   });
 
@@ -195,6 +196,7 @@ describe("config storage", () => {
     expect(DEFAULT_CONFIG.autoUpdate).toBe(true);
     expect(DEFAULT_CONFIG.exclude).toEqual([]);
     expect(DEFAULT_CONFIG.musicApps).toEqual([]);
+    expect(DEFAULT_CONFIG.onQuitFailure).toBe("prompt");
   });
 
   it("falls back to default force when force value is invalid in config", () => {

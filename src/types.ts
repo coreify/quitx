@@ -18,6 +18,8 @@ export interface QuitResult {
   error?: string | undefined;
 }
 
+export type OnQuitFailureMode = "prompt" | "force" | "error";
+
 export interface QuitxConfig {
   exclude: string[];
   force: "normal" | "force";
@@ -30,6 +32,7 @@ export interface QuitxConfig {
   musicApps: string[];
   autoUpdate: boolean;
   sortBy?: "name" | "memory" | undefined;
+  onQuitFailure?: OnQuitFailureMode | undefined;
 }
 
 export interface CliOptions {
@@ -63,6 +66,7 @@ export interface CliOptions {
   restart?: boolean | undefined;
   stash?: boolean | undefined;
   restore?: boolean | undefined;
+  onQuitFailure?: OnQuitFailureMode | undefined;
 }
 
 export interface QuitOptions {

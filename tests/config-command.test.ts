@@ -47,6 +47,7 @@ const fullConfig = (overrides: Partial<QuitxConfig> = {}): QuitxConfig => ({
   neverQuitMusic: false,
   musicApps: [],
   autoUpdate: true,
+  onQuitFailure: "prompt",
   ...overrides,
 });
 
@@ -375,6 +376,29 @@ describe("config command", () => {
     );
     expect(mockLogSuccess).toHaveBeenCalledWith(
       "Automatic update checks: disabled",
+    );
+  });
+
+  it("toggles on-quit-failure mode to force and handles cancel", async () => {
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(fullConfig());
+    const saveSpy = vi
+      .spyOn(configModule, "saveConfig")
+      .mockImplementation(() => {});
+
+    mockSelect
+      .mockResolvedValueOnce("on-quit-failure")
+      .mockResolvedValueOnce("force")
+      .mockResolvedValueOnce("on-quit-failure")
+      .mockResolvedValueOnce(Symbol("cancel"))
+      .mockResolvedValueOnce("exit");
+
+    const code = await configCommand();
+    expect(code).toBe(0);
+    expect(saveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ onQuitFailure: "force" }),
+    );
+    expect(mockLogSuccess).toHaveBeenCalledWith(
+      "On quit failure action set to: force",
     );
   });
 
@@ -717,6 +741,55 @@ describe("config command", () => {
       expect(errorSpy).toHaveBeenCalledWith(
         expect.stringContaining('Invalid value for force: "turbo"'),
       );
+      errorSpy.mockRestore();
+    });
+
+    it("handles onQuitFailure get and set", async () => {
+      vi.spyOn(configModule, "loadConfig").mockReturnValue(
+        fullConfig({ onQuitFailure: "prompt" }),
+      );
+      const saveSpy = vi
+        .spyOn(configModule, "saveConfig")
+        .mockImplementation(() => {});
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      // get onQuitFailure
+      expect(
+        await handleConfigCli({
+          configAction: "get",
+          configKey: "onQuitFailure",
+        }),
+      ).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith("prompt");
+
+      // set onQuitFailure valid
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "onQuitFailure",
+          configValue: "force",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ onQuitFailure: "force" }),
+      );
+
+      // set onQuitFailure invalid
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "onQuitFailure",
+          configValue: "invalid-mode",
+        }),
+      ).toBe(1);
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Invalid value for onQuitFailure: "invalid-mode"',
+        ),
+      );
+
+      logSpy.mockRestore();
       errorSpy.mockRestore();
     });
   });

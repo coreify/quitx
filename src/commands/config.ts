@@ -454,6 +454,38 @@ async function toggleSortBy(): Promise<void> {
   log.success(`Default sorting set to: ${config.sortBy}`);
 }
 
+async function toggleOnQuitFailure(): Promise<void> {
+  const config = loadConfig();
+  const current = config.onQuitFailure ?? "prompt";
+  const choice = await select({
+    message: `On Quit Failure Action (current: ${current})`,
+    options: [
+      {
+        value: "prompt",
+        label: "Prompt to Force Quit (prompt)",
+        hint: "Ask interactively before force-quitting stubborn apps with SIGKILL.",
+      },
+      {
+        value: "force",
+        label: "Auto Force Quit (force)",
+        hint: "Automatically force quit (SIGKILL) if graceful quit fails.",
+      },
+      {
+        value: "error",
+        label: "Error Only (error)",
+        hint: "Report error and leave stubborn apps running without prompting.",
+      },
+      backOption(),
+    ],
+    initialValue: current,
+  });
+
+  if (isCancel(choice) || choice === BACK_VALUE) return;
+  config.onQuitFailure = choice as "prompt" | "force" | "error";
+  saveConfig(config);
+  log.success(`On quit failure action set to: ${config.onQuitFailure}`);
+}
+
 export async function configCommand(): Promise<number> {
   showIntro();
 
@@ -519,6 +551,11 @@ export async function configCommand(): Promise<number> {
           hint: `current: ${config.sortBy ?? "name"}`,
         },
         {
+          value: "on-quit-failure",
+          label: "On Quit Failure Action",
+          hint: `current: ${config.onQuitFailure ?? "prompt"}`,
+        },
+        {
           value: "reset",
           label: "Reset all",
           hint: "restore all settings to defaults",
@@ -543,6 +580,7 @@ export async function configCommand(): Promise<number> {
     if (choice === "exclude") await manageExcludedApps();
     if (choice === "custom-music") await manageCustomMusicApps();
     if (choice === "sort-by") await toggleSortBy();
+    if (choice === "on-quit-failure") await toggleOnQuitFailure();
     if (choice === "reset") resetConfig();
   }
 
@@ -563,6 +601,7 @@ export const VALID_CONFIG_KEYS = [
   "musicApps",
   "autoUpdate",
   "sortBy",
+  "onQuitFailure",
 ] as const;
 
 export type ValidConfigKey = (typeof VALID_CONFIG_KEYS)[number];
@@ -692,6 +731,16 @@ export async function handleConfigCli(
       } else {
         console.error(
           `✖ Invalid value for sortBy: "${raw}". Must be "name" or "memory".`,
+        );
+        return 1;
+      }
+    } else if (key === "onQuitFailure") {
+      const lower = raw.toLowerCase();
+      if (lower === "prompt" || lower === "force" || lower === "error") {
+        config.onQuitFailure = lower;
+      } else {
+        console.error(
+          `✖ Invalid value for onQuitFailure: "${raw}". Must be "prompt", "force", or "error".`,
         );
         return 1;
       }

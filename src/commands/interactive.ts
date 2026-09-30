@@ -1,7 +1,7 @@
 import { isCancel, log, spinner } from "@clack/prompts";
 import { loadConfig } from "../config";
 import { getRunningApps } from "../macos/apps";
-import { quitApps } from "../macos/quit";
+import { handleQuitFailures, quitApps } from "../macos/quit";
 import type { AppInfo, CliOptions } from "../types";
 import {
   printThanks,
@@ -138,6 +138,11 @@ export async function interactiveCommand(
 
   if (!options.json) {
     s.stop(options.dryRun ? "Dry run complete" : "Quitting complete");
+  }
+
+  await handleQuitFailures(results, options, config);
+
+  if (!options.json) {
     renderResults(results, options.dryRun);
     const successCount = results.filter((r) => r.success).length;
     const actionVerb = options.dryRun ? "Would quit" : "Quit";

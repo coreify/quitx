@@ -3,7 +3,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { loadConfig } from "../config";
 import { getRunningApps, isAppRunning } from "../macos/apps";
-import { quitApp } from "../macos/quit";
+import { forceQuitApp, quitApp } from "../macos/quit";
 import type { AppInfo, CliOptions } from "../types";
 import { printThanks, showCancel, showIntro, showOutro } from "../ui/output";
 import { selectApps, shouldConfirmQuit } from "../ui/selector";
@@ -185,16 +185,42 @@ export async function restartCommand(
       continue;
     }
 
-    const quitRes = await quitApp(app, { force: useForce });
+    let quitRes = await quitApp(app, { force: useForce });
     if (!quitRes.success) {
-      results.push({
-        app,
-        success: false,
-        restarted: false,
-        forced: quitRes.forced,
-        error: quitRes.error ?? "Failed to quit",
-      });
-      continue;
+      const failMode =
+        options.onQuitFailure ?? config.onQuitFailure ?? "prompt";
+      let forceSuccess = false;
+      if (failMode === "force") {
+        forceSuccess = forceQuitApp(app);
+      } else if (
+        failMode === "prompt" &&
+        !options.yes &&
+        !options.quiet &&
+        !options.json
+      ) {
+        const { confirm, isCancel: isConfirmCancel } =
+          await import("@clack/prompts");
+        const shouldForce = await confirm({
+          message: `Could not quit "${app.name}". Force quit to restart? (SIGKILL)`,
+          initialValue: true,
+        });
+        if (!isConfirmCancel(shouldForce) && shouldForce === true) {
+          forceSuccess = forceQuitApp(app);
+        }
+      }
+
+      if (forceSuccess) {
+        quitRes = { app, success: true, forced: true };
+      } else {
+        results.push({
+          app,
+          success: false,
+          restarted: false,
+          forced: quitRes.forced,
+          error: quitRes.error ?? "Failed to quit",
+        });
+        continue;
+      }
     }
 
     await waitFn(app);

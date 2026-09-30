@@ -188,6 +188,42 @@ describe("Restart Command", () => {
       expect(reopenMock).not.toHaveBeenCalled();
     });
 
+    it("force-quits and reopens when quit fails and onQuitFailure is force", async () => {
+      const appsModule = await import("../src/macos/apps");
+      const quitModule = await import("../src/macos/quit");
+      const reopenMock = vi.fn().mockResolvedValue(undefined);
+      const waitMock = vi.fn().mockResolvedValue(true);
+
+      vi.spyOn(appsModule, "getRunningApps").mockResolvedValue([
+        { name: "Discord", bundleId: "com.discord.app", pid: 1234 },
+      ]);
+      vi.spyOn(quitModule, "quitApp").mockResolvedValue({
+        app: { name: "Discord", bundleId: "com.discord.app", pid: 1234 },
+        success: false,
+        forced: false,
+        error: "Unsaved prompt",
+      });
+      const forceSpy = vi
+        .spyOn(quitModule, "forceQuitApp")
+        .mockReturnValue(true);
+
+      const exitCode = await restartCommand(
+        {
+          apps: ["Discord"],
+          onQuitFailure: "force",
+          yes: true,
+          quiet: true,
+          json: true,
+        },
+        { reopen: reopenMock, wait: waitMock },
+      );
+
+      expect(exitCode).toBe(0);
+      expect(forceSpy).toHaveBeenCalled();
+      expect(reopenMock).toHaveBeenCalled();
+      forceSpy.mockRestore();
+    });
+
     it("handles interactive selection cancellation", async () => {
       const appsModule = await import("../src/macos/apps");
       const selectorModule = await import("../src/ui/selector");

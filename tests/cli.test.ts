@@ -73,6 +73,24 @@ describe("cli parser and dispatcher", () => {
     expect(opts2.includeBackground).toBe(true);
   });
 
+  it("parses --on-quit-failure flag", () => {
+    const opts1 = parseCliArgs(["--on-quit-failure", "force"]);
+    expect(opts1.onQuitFailure).toBe("force");
+
+    const opts2 = parseCliArgs(["--on-quit-failure=prompt"]);
+    expect(opts2.onQuitFailure).toBe("prompt");
+
+    const opts3 = parseCliArgs(["--on-quit-failure", "error"]);
+    expect(opts3.onQuitFailure).toBe("error");
+
+    expect(() => parseCliArgs(["--on-quit-failure", "invalid"])).toThrow(
+      /Invalid on-quit-failure option/,
+    );
+    expect(() => parseCliArgs(["--on-quit-failure=invalid"])).toThrow(
+      /Invalid on-quit-failure option/,
+    );
+  });
+
   it("parses --config flag and config subcommand with actions", () => {
     const opts1 = parseCliArgs(["--config"]);
     expect(opts1.manageConfig).toBe(true);

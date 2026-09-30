@@ -28,6 +28,7 @@ export const DEFAULT_CONFIG: QuitxConfig = {
   neverQuitMusic: false,
   musicApps: [],
   autoUpdate: true,
+  onQuitFailure: "prompt",
 };
 
 export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
@@ -72,6 +73,13 @@ export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
           ? obj.checkUpdate
           : DEFAULT_CONFIG.autoUpdate;
 
+    const onQuitFailureVal =
+      obj.onQuitFailure === "prompt" ||
+      obj.onQuitFailure === "force" ||
+      obj.onQuitFailure === "error"
+        ? obj.onQuitFailure
+        : DEFAULT_CONFIG.onQuitFailure;
+
     const result: QuitxConfig = {
       exclude: Array.isArray(obj.exclude) ? (obj.exclude as string[]) : [],
       force:
@@ -97,6 +105,7 @@ export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
         ? (obj.musicApps as string[])
         : DEFAULT_CONFIG.musicApps,
       autoUpdate: autoUpdateVal,
+      onQuitFailure: onQuitFailureVal,
     };
 
     if (obj.sortBy === "memory" || obj.sortBy === "name") {

@@ -72,6 +72,7 @@ OPTIONS:
       --exclude <apps>    Add apps to persistent exclude list (comma-separated)
       --check-update      Check for package updates (60s rate limit)
       --no-update-check   Disable automatic update check for this run
+      --on-quit-failure <mode> Action on quit failure: prompt, force, or error
       --config            Open interactive config manager
       --json              Output data in JSON format
   -h, --help              Show help information
