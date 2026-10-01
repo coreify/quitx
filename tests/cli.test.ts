@@ -378,4 +378,14 @@ describe("cli parser and dispatcher", () => {
     expect(opts.neverQuitMusic).toBe(true);
     expect(opts.noUpdateCheck).toBe(true);
   });
+
+  it("parses -m, --memory, -q, --quiet and handles case-insensitivity", () => {
+    expect(parseCliArgs(["-m"]).sortBy).toBe("memory");
+    expect(parseCliArgs(["--memory"]).sortBy).toBe("memory");
+    expect(parseCliArgs(["-q"]).quiet).toBe(true);
+    expect(parseCliArgs(["--quiet"]).quiet).toBe(true);
+    expect(parseCliArgs(["--sort=MEMORY"]).sortBy).toBe("memory");
+    expect(parseCliArgs(["--sort", "NAME"]).sortBy).toBe("name");
+    expect(parseCliArgs(["--on-quit-failure=FORCE"]).onQuitFailure).toBe("force");
+  });
 });

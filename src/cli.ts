@@ -173,11 +173,16 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
           .filter(Boolean);
         options.keep?.push(...split);
       }
+    } else if (arg === "-m" || arg === "--memory") {
+      options.sortBy = "memory";
+    } else if (arg === "-q" || arg === "--quiet") {
+      options.quiet = true;
     } else if (arg === "--sort" || arg.startsWith("--sort=")) {
       const isEq = arg.startsWith("--sort=");
       const val = isEq ? arg.slice("--sort=".length).trim() : args[++i];
-      if (val === "memory" || val === "name") {
-        options.sortBy = val;
+      const lower = val?.toLowerCase();
+      if (lower === "memory" || lower === "name") {
+        options.sortBy = lower;
       } else {
         const usage = isEq ? "--sort=[name|memory]" : "--sort [name|memory]";
         throw new Error(`Invalid sort option: "${val}". Usage: ${usage}`);
@@ -190,8 +195,9 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
       const val = isEq
         ? arg.slice("--on-quit-failure=".length).trim()
         : args[++i];
-      if (val === "prompt" || val === "force" || val === "error") {
-        options.onQuitFailure = val;
+      const lower = val?.toLowerCase();
+      if (lower === "prompt" || lower === "force" || lower === "error") {
+        options.onQuitFailure = lower;
       } else {
         const usage = isEq
           ? "--on-quit-failure=[prompt|force|error]"

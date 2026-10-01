@@ -19,12 +19,16 @@ npx @coreify/quitx
 ## Quick Start
 
 ```bash
-quitx                  # Interactive picker with RAM usage
-quitx -a               # Quit all running apps
-quitx Slack,Discord    # Quit specific apps
-quitx restart Discord  # Quit and reopen an app
-quitx stash            # Stash running apps and quit
-quitx restore          # Restore stashed session
+quitx                   # Interactive picker with RAM usage
+quitx -w                # Clean up closed-window apps (zero open windows)
+quitx -w -y             # Immediately quit all windowless apps
+quitx -a                # Quit all running apps
+quitx -a --keep Spotify # Quit all apps except Spotify (one-time)
+quitx --sort memory     # Sort apps by highest RAM consumption
+quitx Slack,Discord     # Quit specific apps
+quitx restart Discord   # Quit and reopen an app
+quitx stash             # Stash running apps and quit
+quitx restore           # Restore stashed session
 ```
 
 ## License
