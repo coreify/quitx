@@ -58,6 +58,7 @@ describe("Windowless Apps Filter", () => {
         { name: "Chrome", windowCount: 2 },
         { name: "Notes", windowCount: 0 },
         { name: "HelperDaemon", windowCount: 0, isBackground: true },
+        { name: "UnknownApp" }, // windowCount is undefined
       ];
 
       const filtered = filterApps(apps, { windowless: true });

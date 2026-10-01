@@ -13,15 +13,21 @@ function run() {
   const Regular = $.NSApplicationActivationPolicyRegular;
   const apps = ${RUNNING_APPS};
   const winCountByPid = {};
+  let winInfoSuccess = false;
   try {
     const list = $.CGWindowListCopyWindowInfo($.kCGWindowListOptionAll, 0);
-    const arr = ObjC.castRefToObject(list);
-    const unwrapped = ObjC.deepUnwrap(arr);
-    for (let i = 0; i < unwrapped.length; i++) {
-      const w = unwrapped[i];
-      if (w.kCGWindowLayer === 0 && w.kCGWindowBounds && w.kCGWindowBounds.Width > 50 && w.kCGWindowBounds.Height > 50 && w.kCGWindowAlpha > 0) {
-        const pid = w.kCGWindowOwnerPID;
-        winCountByPid[pid] = (winCountByPid[pid] || 0) + 1;
+    if (!list.isNil()) {
+      const arr = ObjC.castRefToObject(list);
+      const unwrapped = ObjC.deepUnwrap(arr);
+      if (Array.isArray(unwrapped)) {
+        winInfoSuccess = true;
+        for (let i = 0; i < unwrapped.length; i++) {
+          const w = unwrapped[i];
+          if (w.kCGWindowLayer === 0 && w.kCGWindowBounds && w.kCGWindowBounds.Width > 50 && w.kCGWindowBounds.Height > 50 && w.kCGWindowAlpha > 0) {
+            const pid = w.kCGWindowOwnerPID;
+            winCountByPid[pid] = (winCountByPid[pid] || 0) + 1;
+          }
+        }
       }
     }
   } catch (e) {}
@@ -43,7 +49,7 @@ function run() {
         }
       }
     }
-    const winCount = String(winCountByPid[app.processIdentifier] || 0);
+    const winCount = winInfoSuccess ? String(winCountByPid[app.processIdentifier] || 0) : '';
     lines.push(name + '\\t' + bundleId + '\\t' + pid + '\\t' + isBg + '\\t' + isMusic + '\\t' + winCount);
   }
   return lines.join('\\n');
@@ -301,7 +307,8 @@ export function filterApps(
     if (windowless) {
       if (
         app.isBackground ||
-        (app.windowCount !== undefined && app.windowCount > 0)
+        app.windowCount === undefined ||
+        app.windowCount > 0
       ) {
         continue;
       }

@@ -66,6 +66,7 @@ OPTIONS:
       --keep <apps>       Exclude apps for this run without modifying config
       --except <apps>     Alias for --keep
       --sort <type>       Sort apps by "name" or "memory"
+  -m, --memory            Sort apps by memory usage (alias for --sort memory)
   -b, --background        Include background apps in app list
       --include-finder    Include Finder in the app list
       --include-trash     Include Trash in the app list (empties on quit)
@@ -74,6 +75,7 @@ OPTIONS:
       --no-update-check   Disable automatic update check for this run
       --on-quit-failure <mode> Action on quit failure: prompt, force, or error
       --config            Open interactive config manager
+  -q, --quiet             Suppress informational output
       --json              Output data in JSON format
   -h, --help              Show help information
   -v, --version           Show version number
