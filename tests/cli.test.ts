@@ -386,6 +386,8 @@ describe("cli parser and dispatcher", () => {
     expect(parseCliArgs(["--quiet"]).quiet).toBe(true);
     expect(parseCliArgs(["--sort=MEMORY"]).sortBy).toBe("memory");
     expect(parseCliArgs(["--sort", "NAME"]).sortBy).toBe("name");
-    expect(parseCliArgs(["--on-quit-failure=FORCE"]).onQuitFailure).toBe("force");
+    expect(parseCliArgs(["--on-quit-failure=FORCE"]).onQuitFailure).toBe(
+      "force",
+    );
   });
 });

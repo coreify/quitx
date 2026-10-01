@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.3.1
+
+### Fixed
+
+- Windowless app filter accuracy: Ensure applications with unknown or unverified window counts (`undefined`) are never falsely matched as windowless apps.
+- CoreGraphics window enumeration: Safely handle window query exceptions and unwrap failures without reporting false zero-window counts.
+
+### Added
+
+- Shorthand `-m` and `--memory` CLI flags to quickly sort running apps by memory footprint (alias for `--sort memory`).
+- Missing `-q` and `--quiet` CLI flags to suppress non-essential output and greetings.
+- Case-insensitive parsing for `--sort` and `--on-quit-failure` flag values.
+- Documentation and interactive simulator support for `--windowless`, `--keep`, `restart`, `stash`, and `restore`.
+
 ## 1.3.0
 
 ### Added
