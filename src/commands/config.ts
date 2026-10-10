@@ -441,7 +441,7 @@ async function toggleSortBy(): Promise<void> {
       {
         value: "memory",
         label: "Memory usage (memory)",
-        hint: "Sort applications with highest RAM usage first.",
+        hint: "Sort applications with highest memory usage first.",
       },
       backOption(),
     ],

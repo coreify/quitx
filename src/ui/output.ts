@@ -93,7 +93,7 @@ EXAMPLES:
   $ quitx --windowless            Quit apps running with no open windows
   $ quitx --windowless -y         Clean up closed-window apps immediately
   $ quitx --all --keep Spotify    Quit all apps except Spotify (one-time)
-  $ quitx --sort memory           Sort apps by highest RAM consumption
+  $ quitx --sort memory           Sort apps by highest memory consumption
   $ quitx restart Discord         Restart Discord
   $ quitx restart Discord,Slack   Restart Discord and Slack
   $ quitx stash                   Save session and quit running apps
