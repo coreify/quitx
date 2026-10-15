@@ -17,8 +17,6 @@ vi.mock("@clack/prompts", () => ({
 
 import type { AppInfo } from "../src/types";
 import {
-  attachQuitAllBehavior,
-  handleQuitAllToggle,
   SELECT_ALL_VALUE,
   selectApps,
   shouldConfirmQuit,
@@ -163,160 +161,24 @@ describe("selector ui", () => {
     expect(mockConfirm).not.toHaveBeenCalled();
   });
 
-  it("handleQuitAllToggle unselects quit-all when quit-all is toggled while selected", () => {
-    const next = handleQuitAllToggle(SELECT_ALL_VALUE, [SELECT_ALL_VALUE]);
-    expect(next).toEqual([]);
+  it("shouldConfirmQuit respects custom threshold", async () => {
+    mockConfirm.mockClear();
+    expect(await shouldConfirmQuit(2, false, false, 3)).toBe(true);
+    expect(mockConfirm).not.toHaveBeenCalled();
+
+    mockConfirm.mockResolvedValue(true);
+    const res = await shouldConfirmQuit(3, false, false, 3);
+    expect(res).toBe(true);
+    expect(mockConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "Quit 3 selected apps?" }),
+    );
   });
 
-  it("handleQuitAllToggle selects quit-all and clears individual apps when quit-all is picked", () => {
-    const next = handleQuitAllToggle(SELECT_ALL_VALUE, ["app1", "app2"]);
-    expect(next).toEqual([SELECT_ALL_VALUE]);
-  });
-
-  it("handleQuitAllToggle ignores individual app toggle while quit-all is active", () => {
-    const next = handleQuitAllToggle("app1", [SELECT_ALL_VALUE]);
-    expect(next).toEqual([SELECT_ALL_VALUE]);
-  });
-
-  it("handleQuitAllToggle allows selecting individual apps when quit-all is unselected", () => {
-    let selected: string[] = [];
-    selected = handleQuitAllToggle("app1", selected);
-    expect(selected).toEqual(["app1"]);
-
-    selected = handleQuitAllToggle("app2", selected);
-    expect(selected).toEqual(["app1", "app2"]);
-
-    selected = handleQuitAllToggle("app1", selected);
-    expect(selected).toEqual(["app2"]);
-  });
-
-  it("attachQuitAllBehavior locks arrow cursor when quit-all active and unlocks when unselected", () => {
-    interface TestPrompt {
-      options: { value: string; label: string }[];
-      value?: string[];
-      cursor?: number;
-      toggleValue?: () => void;
-      toggleAll?: () => void;
-    }
-
-    const prompt: TestPrompt = {
-      options: [
-        { value: SELECT_ALL_VALUE, label: "Quit all" },
-        { value: "app1", label: "App 1" },
-        { value: "app2", label: "App 2" },
-      ],
-      value: [SELECT_ALL_VALUE],
-      cursor: 0,
-    };
-
-    attachQuitAllBehavior(prompt);
-
-    expect(prompt.cursor).toBe(0);
-    prompt.cursor = 1;
-    expect(prompt.cursor).toBe(0);
-
-    prompt.toggleValue!();
-    expect(prompt.value).toEqual([]);
-
-    prompt.cursor = 1;
-    expect(prompt.cursor).toBe(1);
-
-    prompt.toggleValue!();
-    expect(prompt.value).toEqual(["app1"]);
-
-    prompt.cursor = 2;
-    prompt.toggleValue!();
-    expect(prompt.value).toEqual(["app1", "app2"]);
-
-    prompt.cursor = 0;
-    prompt.toggleValue!();
-    expect(prompt.value).toEqual([SELECT_ALL_VALUE]);
-    expect(prompt.cursor).toBe(0);
-
-    prompt.cursor = 2;
-    expect(prompt.cursor).toBe(0);
-  });
-
-  it("attachQuitAllBehavior toggleAll switches between quit-all and none", () => {
-    interface TestPrompt {
-      options: { value: string; label: string }[];
-      value?: string[];
-      cursor?: number;
-      toggleValue?: () => void;
-      toggleAll?: () => void;
-    }
-
-    const prompt: TestPrompt = {
-      options: [
-        { value: SELECT_ALL_VALUE, label: "Quit all" },
-        { value: "app1", label: "App 1" },
-      ],
-      value: [SELECT_ALL_VALUE],
-      cursor: 0,
-    };
-
-    attachQuitAllBehavior(prompt);
-    prompt.toggleAll!();
-    expect(prompt.value).toEqual([]);
-
-    prompt.toggleAll!();
-    expect(prompt.value).toEqual([SELECT_ALL_VALUE]);
-    expect(prompt.cursor).toBe(0);
-  });
-
-  it("attachQuitAllBehavior toggleInvert switches between quit-all and none", () => {
-    interface TestPrompt {
-      options: { value: string; label: string }[];
-      value?: string[];
-      cursor?: number;
-      toggleValue?: () => void;
-      toggleAll?: () => void;
-      toggleInvert?: () => void;
-    }
-
-    const prompt: TestPrompt = {
-      options: [
-        { value: SELECT_ALL_VALUE, label: "Quit all" },
-        { value: "app1", label: "App 1" },
-      ],
-      value: [SELECT_ALL_VALUE],
-      cursor: 0,
-    };
-
-    attachQuitAllBehavior(prompt);
-    prompt.toggleInvert!();
-    expect(prompt.value).toEqual([]);
-
-    prompt.toggleInvert!();
-    expect(prompt.value).toEqual([SELECT_ALL_VALUE]);
-    expect(prompt.cursor).toBe(0);
-  });
-
-  it("attachQuitAllBehavior strictly enforces mutual exclusivity via value setter", () => {
-    interface TestPrompt {
-      options: { value: string; label: string }[];
-      value?: string[];
-      cursor?: number;
-    }
-
-    const prompt: TestPrompt = {
-      options: [
-        { value: SELECT_ALL_VALUE, label: "Quit all" },
-        { value: "app1", label: "App 1" },
-        { value: "app2", label: "App 2" },
-      ],
-      value: [SELECT_ALL_VALUE],
-      cursor: 0,
-    };
-
-    attachQuitAllBehavior(prompt);
-
-    prompt.value = [SELECT_ALL_VALUE, "app1", "app2"];
-    expect(prompt.value).toEqual([SELECT_ALL_VALUE]);
-    expect(prompt.cursor).toBe(0);
-
-    prompt.value = ["app1", "app2"];
-    expect(prompt.value).toEqual(["app1", "app2"]);
+  it("shouldConfirmQuit threshold of 1 prompts for any count", async () => {
+    mockConfirm.mockResolvedValue(true);
+    const res = await shouldConfirmQuit(1, false, false, 1);
+    expect(res).toBe(true);
+    expect(mockConfirm).toHaveBeenCalledTimes(1);
   });
 
   describe("backOption and option hints formatting", () => {

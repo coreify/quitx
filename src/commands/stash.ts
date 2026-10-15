@@ -12,7 +12,7 @@ import {
 } from "../ui/output";
 
 export async function stashCommand(options: CliOptions = {}): Promise<number> {
-  if (!options.json) {
+  if (!options.json && !options.quiet) {
     showIntro();
   }
 
@@ -35,6 +35,7 @@ export async function stashCommand(options: CliOptions = {}): Promise<number> {
     groupBackground: config.groupBackground,
     neverQuitMusic,
     musicApps: options.musicApps ?? config.musicApps,
+    protectSystemApps: config.protectSystemApps,
   });
 
   if (apps.length === 0) {
@@ -73,7 +74,7 @@ export async function stashCommand(options: CliOptions = {}): Promise<number> {
   }
 
   const s = spinner();
-  if (!options.json) {
+  if (!options.json && !options.quiet) {
     s.start(
       options.dryRun
         ? `[dry-run] Stashing ${apps.length} apps...`
@@ -84,19 +85,24 @@ export async function stashCommand(options: CliOptions = {}): Promise<number> {
   const results = await quitApps(apps, {
     force: useForce,
     dryRun: options.dryRun,
+    timeoutMs: config.quitTimeoutMs,
   });
 
   if (!options.json) {
-    s.stop(options.dryRun ? "Dry run complete" : "Stash complete");
+    if (!options.quiet) {
+      s.stop(options.dryRun ? "Dry run complete" : "Stash complete");
+    }
     renderResults(results, options.dryRun);
     const successCount = results.filter((r) => r.success).length;
     const actionVerb = options.dryRun
       ? "Would stash and quit"
       : "Stashed and quit";
-    showOutro(
-      `${actionVerb} ${successCount} of ${apps.length} apps. Run "quitx restore" to reopen them.`,
-    );
-    printThanks(options);
+    if (!options.quiet) {
+      showOutro(
+        `${actionVerb} ${successCount} of ${apps.length} apps. Run "quitx restore" to reopen them.`,
+      );
+      printThanks(options);
+    }
   } else {
     console.log(
       JSON.stringify(
@@ -113,5 +119,5 @@ export async function stashCommand(options: CliOptions = {}): Promise<number> {
     );
   }
 
-  return 0;
+  return results.some((r) => !r.success) ? 1 : 0;
 }

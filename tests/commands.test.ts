@@ -49,6 +49,8 @@ import { interactiveCommand } from "../src/commands/interactive";
 import { listCommand } from "../src/commands/list";
 import * as appsModule from "../src/macos/apps";
 import * as quitModule from "../src/macos/quit";
+import * as configModule from "../src/config";
+import * as recentModule from "../src/config/recent";
 import type { AppInfo, QuitResult } from "../src/types";
 
 describe("cli commands", () => {
@@ -377,5 +379,57 @@ describe("cli commands", () => {
     expect(logSpy).toHaveBeenCalledWith("Helper");
 
     logSpy.mockRestore();
+  });
+
+  it("allCommand skips confirmation when confirmQuitAll is false", async () => {
+    const mockApps: AppInfo[] = [
+      { name: "Arc", bundleId: "com.arc" },
+      { name: "Slack" },
+    ];
+    vi.spyOn(appsModule, "getRunningApps").mockResolvedValue(mockApps);
+    vi.spyOn(configModule, "loadConfig").mockReturnValue({
+      ...configModule.DEFAULT_CONFIG,
+      confirmQuitAll: false,
+    });
+    vi.spyOn(quitModule, "quitApps").mockResolvedValue([
+      { app: mockApps[0]!, success: true, forced: false },
+      { app: mockApps[1]!, success: true, forced: false },
+    ]);
+    mockConfirm.mockClear();
+
+    const code = await allCommand({});
+    expect(code).toBe(0);
+    expect(mockConfirm).not.toHaveBeenCalled();
+    expect(mockOutro).toHaveBeenCalledWith("Quit 2 of 2 apps.");
+  });
+
+  it("allCommand records successfully quit apps for undo", async () => {
+    const mockApps: AppInfo[] = [{ name: "Arc", bundleId: "com.arc" }];
+    vi.spyOn(appsModule, "getRunningApps").mockResolvedValue(mockApps);
+    const recordSpy = vi
+      .spyOn(recentModule, "recordQuitResults")
+      .mockReturnValue([]);
+    vi.spyOn(quitModule, "quitApps").mockResolvedValue([
+      { app: mockApps[0]!, success: true, forced: false },
+    ]);
+
+    const code = await allCommand({ yes: true });
+    expect(code).toBe(0);
+    expect(recordSpy).toHaveBeenCalledWith([
+      { app: mockApps[0], success: true, forced: false },
+    ]);
+  });
+
+  it("allCommand does not record on dryRun", async () => {
+    const mockApps: AppInfo[] = [{ name: "Arc" }];
+    vi.spyOn(appsModule, "getRunningApps").mockResolvedValue(mockApps);
+    const recordSpy = vi.spyOn(recentModule, "recordQuitResults");
+    vi.spyOn(quitModule, "quitApps").mockResolvedValue([
+      { app: mockApps[0]!, success: true, forced: false },
+    ]);
+
+    const code = await allCommand({ yes: true, dryRun: true });
+    expect(code).toBe(0);
+    expect(recordSpy).not.toHaveBeenCalled();
   });
 });

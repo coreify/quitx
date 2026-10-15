@@ -26,20 +26,26 @@ export const DEFAULT_CONFIG: QuitxConfig = {
   groupBackground: true,
   defaultSelectAll: true,
   neverQuitMusic: false,
-  musicApps: [],
+  musicApps: ["Music", "Spotify", "Deezer", "Tidal", "Doppler"],
   autoUpdate: true,
+  protectSystemApps: true,
+  quitTimeoutMs: 8000,
+  confirmThreshold: 4,
+  confirmQuitAll: true,
+  disableQuitTips: false,
+  sortBy: "name",
   onQuitFailure: "prompt",
 };
 
 export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
   try {
     if (!existsSync(filePath)) {
-      return { ...DEFAULT_CONFIG, exclude: [], musicApps: [] };
+      return { ...DEFAULT_CONFIG, exclude: [] };
     }
     const raw = readFileSync(filePath, "utf-8");
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== "object" || parsed === null) {
-      return { ...DEFAULT_CONFIG, exclude: [], musicApps: [] };
+      return { ...DEFAULT_CONFIG, exclude: [] };
     }
 
     const obj = parsed as Record<string, unknown>;
@@ -80,6 +86,37 @@ export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
         ? obj.onQuitFailure
         : DEFAULT_CONFIG.onQuitFailure;
 
+    const protectSystemAppsVal =
+      typeof obj.protectSystemApps === "boolean"
+        ? obj.protectSystemApps
+        : DEFAULT_CONFIG.protectSystemApps;
+
+    const quitTimeoutMsVal =
+      typeof obj.quitTimeoutMs === "number" &&
+      Number.isFinite(obj.quitTimeoutMs) &&
+      obj.quitTimeoutMs >= 1000 &&
+      obj.quitTimeoutMs <= 60000
+        ? Math.round(obj.quitTimeoutMs)
+        : DEFAULT_CONFIG.quitTimeoutMs;
+
+    const confirmThresholdVal =
+      typeof obj.confirmThreshold === "number" &&
+      Number.isFinite(obj.confirmThreshold) &&
+      obj.confirmThreshold >= 1 &&
+      obj.confirmThreshold <= 50
+        ? Math.round(obj.confirmThreshold)
+        : DEFAULT_CONFIG.confirmThreshold;
+
+    const confirmQuitAllVal =
+      typeof obj.confirmQuitAll === "boolean"
+        ? obj.confirmQuitAll
+        : DEFAULT_CONFIG.confirmQuitAll;
+
+    const disableQuitTipsVal =
+      typeof obj.disableQuitTips === "boolean"
+        ? obj.disableQuitTips
+        : DEFAULT_CONFIG.disableQuitTips;
+
     const result: QuitxConfig = {
       exclude: Array.isArray(obj.exclude) ? (obj.exclude as string[]) : [],
       force:
@@ -105,16 +142,22 @@ export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
         ? (obj.musicApps as string[])
         : DEFAULT_CONFIG.musicApps,
       autoUpdate: autoUpdateVal,
+      protectSystemApps: protectSystemAppsVal,
+      quitTimeoutMs: quitTimeoutMsVal,
+      confirmThreshold: confirmThresholdVal,
+      confirmQuitAll: confirmQuitAllVal,
+      disableQuitTips: disableQuitTipsVal,
       onQuitFailure: onQuitFailureVal,
     };
 
-    if (obj.sortBy === "memory" || obj.sortBy === "name") {
-      result.sortBy = obj.sortBy;
-    }
+    result.sortBy =
+      obj.sortBy === "memory" || obj.sortBy === "name" || obj.sortBy === "cpu"
+        ? obj.sortBy
+        : DEFAULT_CONFIG.sortBy;
 
     return result;
   } catch {
-    return { ...DEFAULT_CONFIG, exclude: [], musicApps: [] };
+    return { ...DEFAULT_CONFIG, exclude: [] };
   }
 }
 

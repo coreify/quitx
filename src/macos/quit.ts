@@ -8,8 +8,9 @@ import type {
 } from "../types";
 import { sleep } from "../utils/sleep";
 import { isAppRunning, isProcessAlive } from "./apps";
-import { buildAppMatcherScript } from "./jxa";
+import { APPKIT_PREAMBLE, RUNNING_APPS } from "./jxa";
 import { runAppleScript, runJXA, type ScriptExecutor } from "./osascript";
+import { isSystemProtectedApp } from "./system-apps";
 import { isCurrentTerminalApp } from "./terminal";
 
 export const EMPTY_TRASH_SCRIPT = `
@@ -23,27 +24,94 @@ ignoring application responses
 end ignoring
 `.trim();
 
-const QUIT_JXA_SCRIPT = buildAppMatcherScript(`
-const bundleId = argv[0] || '';
-const name = argv[1] || '';
-const pidStr = argv[2] || '';
-const targetPid = pidStr ? parseInt(pidStr, 10) : 0;
-const bid = app.bundleIdentifier ? app.bundleIdentifier.js : '';
-const nm = app.localizedName ? app.localizedName.js : '';
-const appPid = app.processIdentifier;
+export const FINDER_CLOSE_WINDOWS_SCRIPT = `
+with timeout of 2 seconds
+    tell application "Finder"
+        close every window
+    end tell
+end timeout
+`.trim();
 
-const matches = targetPid
-  ? appPid === targetPid
-  : ((bundleId && bid === bundleId) || (name && nm.toLowerCase() === name.toLowerCase()));
-
-if (matches) {
-  const res = typeof app.terminate === 'function' ? app.terminate() : app.terminate;
-  return String(res);
+function isFinderApp(app: AppInfo): boolean {
+  return (
+    app.bundleId === "com.apple.finder" || app.name.toLowerCase() === "finder"
+  );
 }
-`);
+
+const QUIT_JXA_SCRIPT = `${APPKIT_PREAMBLE}
+function run(argv) {
+    const bundleId = argv[0] || '';
+    const name = argv[1] || '';
+    const pidStr = argv[2] || '';
+    const targetPid = pidStr ? parseInt(pidStr, 10) : 0;
+    const apps = ${RUNNING_APPS};
+    let root = null;
+    let rootBid = '';
+    for (let i = 0; i < apps.count; i++) {
+        const candidate = apps.objectAtIndex(i);
+        const bid = candidate.bundleIdentifier ? candidate.bundleIdentifier.js : '';
+        const nm = candidate.localizedName ? candidate.localizedName.js : '';
+        const candPid = candidate.processIdentifier;
+        const matches = targetPid
+            ? candPid === targetPid
+            : ((bundleId && bid === bundleId) || (name && nm.toLowerCase() === name.toLowerCase()));
+        if (matches) {
+            root = candidate;
+            rootBid = bid;
+            break;
+        }
+    }
+    if (!root) {
+        return 'false';
+    }
+    let rootPath = '';
+    try {
+        if (root.bundleURL && root.bundleURL.path) {
+            rootPath = root.bundleURL.path.js;
+        }
+    } catch (e) {}
+    let res;
+    try {
+        res = typeof root.terminate === 'function' ? root.terminate() : root.terminate;
+    } catch (e) {
+        res = 'false';
+    }
+    const helperBase = bundleId || rootBid;
+    if (rootPath && helperBase) {
+        const prefix = helperBase + '.';
+        const contentPrefix = rootPath + '/Contents/';
+        const rootPid = root.processIdentifier;
+        for (let j = 0; j < apps.count; j++) {
+            const helper = apps.objectAtIndex(j);
+            if (helper.processIdentifier === rootPid) continue;
+            let helperBid = '';
+            try {
+                helperBid = helper.bundleIdentifier ? helper.bundleIdentifier.js : '';
+            } catch (e) {}
+            if (!helperBid || (helperBid !== helperBase && helperBid.indexOf(prefix) !== 0)) continue;
+            let helperPath = '';
+            try {
+                if (helper.bundleURL && helper.bundleURL.path) {
+                    helperPath = helper.bundleURL.path.js;
+                }
+            } catch (e) {}
+            if (helperPath.indexOf(contentPrefix) !== 0) continue;
+            try {
+                if (typeof helper.terminate === 'function') {
+                    helper.terminate();
+                }
+            } catch (e) {}
+        }
+    }
+    return String(res);
+}`;
 
 function shellQuote(value: string): string {
   return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+function escapeAppleScriptString(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
 export type DeferredQuitScheduler = (app: AppInfo, force: boolean) => void;
@@ -113,8 +181,8 @@ export async function sendQuitSignal(
     try {
       const asScript =
         app.bundleId && app.bundleId !== "missing value"
-          ? `tell application id "${app.bundleId}" to quit`
-          : `tell application "${app.name}" to quit`;
+          ? `tell application id "${escapeAppleScriptString(app.bundleId)}" to quit`
+          : `tell application "${escapeAppleScriptString(app.name)}" to quit`;
       await runAppleScript(asScript, executor);
       return;
     } catch {
@@ -125,7 +193,16 @@ export async function sendQuitSignal(
   }
 
   if (res.trim().toLowerCase() !== "true") {
-    throw new Error(`Could not quit "${app.name}"`);
+    try {
+      const asScript =
+        app.bundleId && app.bundleId !== "missing value"
+          ? `tell application id "${escapeAppleScriptString(app.bundleId)}" to quit`
+          : `tell application "${escapeAppleScriptString(app.name)}" to quit`;
+      await runAppleScript(asScript, executor);
+      return;
+    } catch {
+      throw new Error(`Could not quit "${app.name}"`);
+    }
   }
 }
 
@@ -161,8 +238,30 @@ export async function quitApp(
   executor?: ScriptExecutor,
   deferredScheduler: DeferredQuitScheduler = defaultDeferredQuitScheduler,
 ): Promise<QuitResult> {
+  if (isSystemProtectedApp(app)) {
+    return {
+      app,
+      success: false,
+      forced: false,
+      error: "System-protected app; refusing to quit",
+    };
+  }
+
   if (options.dryRun) {
     return { app, success: true, forced: options.force ?? false };
+  }
+
+  if (isFinderApp(app)) {
+    try {
+      await runAppleScript(FINDER_CLOSE_WINDOWS_SCRIPT, executor);
+      return { app, success: true, forced: false };
+    } catch (error: unknown) {
+      const errorMsg =
+        error instanceof Error
+          ? error.message
+          : "Failed to close Finder windows";
+      return { app, success: false, forced: false, error: errorMsg };
+    }
   }
 
   if (isCurrentTerminalApp(app)) {
@@ -244,34 +343,85 @@ export async function quitApps(
     return [];
   }
 
+  const results: QuitResult[] = [];
+  const allowedApps: AppInfo[] = [];
+
+  for (const app of apps) {
+    if (isSystemProtectedApp(app)) {
+      results.push({
+        app,
+        success: false,
+        forced: false,
+        error: "System-protected app; refusing to quit",
+      });
+    } else {
+      allowedApps.push(app);
+    }
+  }
+
+  if (allowedApps.length === 0) {
+    return results;
+  }
+
   if (options.dryRun) {
-    return apps.map((app) => ({
-      app,
-      success: true,
-      forced: options.force ?? false,
-    }));
+    for (const app of allowedApps) {
+      results.push({ app, success: true, forced: options.force ?? false });
+    }
+    return results;
   }
 
   const currentTerminalApps: AppInfo[] = [];
+  const finderApps: AppInfo[] = [];
   const otherApps: AppInfo[] = [];
 
-  for (const app of apps) {
+  for (const app of allowedApps) {
     if (isCurrentTerminalApp(app)) {
       currentTerminalApps.push(app);
+    } else if (isFinderApp(app)) {
+      finderApps.push(app);
     } else {
       otherApps.push(app);
     }
   }
 
-  const results: QuitResult[] = [];
+  for (const finderApp of finderApps) {
+    try {
+      await runAppleScript(FINDER_CLOSE_WINDOWS_SCRIPT, executor);
+      results.push({ app: finderApp, success: true, forced: false });
+    } catch (error: unknown) {
+      results.push({
+        app: finderApp,
+        success: false,
+        forced: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to close Finder windows",
+      });
+    }
+  }
 
   if (otherApps.length > 0) {
     const maxTimeoutMs = options.timeoutMs ?? DEFAULT_QUIT_TIMEOUT_MS;
     const pollIntervalMs = Math.min(150, maxTimeoutMs);
 
-    await Promise.allSettled(
+    const signalSettled = await Promise.allSettled(
       otherApps.map((app) => sendQuitSignal(app, executor)),
     );
+
+    const signalErrors = new Map<number | string, string>();
+    for (let i = 0; i < otherApps.length; i++) {
+      const app = otherApps[i]!;
+      const outcome = signalSettled[i];
+      const key = app.pid ?? `idx_${i}_${app.name}`;
+      if (outcome && outcome.status === "rejected") {
+        const msg =
+          outcome.reason instanceof Error
+            ? outcome.reason.message
+            : String(outcome.reason);
+        signalErrors.set(key, msg);
+      }
+    }
 
     const pending = new Map<number | string, AppInfo>();
     for (let i = 0; i < otherApps.length; i++) {
@@ -292,7 +442,8 @@ export async function quitApps(
       }
     }
 
-    for (const app of pending.values()) {
+    for (const [key, app] of pending.entries()) {
+      const signalError = signalErrors.get(key);
       if (options.force) {
         const killed = forceQuitApp(app);
         if (killed) {
@@ -307,7 +458,7 @@ export async function quitApps(
           app,
           success: false,
           forced: true,
-          error: "App remained running after force quit",
+          error: signalError ?? "App remained running after force quit",
         });
         continue;
       }
@@ -316,7 +467,9 @@ export async function quitApps(
         app,
         success: false,
         forced: false,
-        error: "App is still running (may have unsaved changes or prompt)",
+        error:
+          signalError ??
+          "App is still running (may have unsaved changes or prompt)",
       });
     }
   }
@@ -352,13 +505,17 @@ export async function handleQuitFailures(
     for (const res of failed) {
       const killed = forceQuitApp(res.app);
       if (killed) {
-        res.success = true;
-        res.forced = true;
-        delete res.error;
-      } else {
-        res.forced = true;
-        res.error = "Force quit failed";
+        await sleep(100);
+        const alive = await isAppRunning(res.app);
+        if (!alive) {
+          res.success = true;
+          res.forced = true;
+          delete res.error;
+          continue;
+        }
       }
+      res.forced = true;
+      res.error = "Force quit failed";
     }
     return results;
   }
@@ -380,13 +537,17 @@ export async function handleQuitFailures(
       for (const res of failed) {
         const killed = forceQuitApp(res.app);
         if (killed) {
-          res.success = true;
-          res.forced = true;
-          delete res.error;
-        } else {
-          res.forced = true;
-          res.error = "Force quit failed";
+          await sleep(100);
+          const alive = await isAppRunning(res.app);
+          if (!alive) {
+            res.success = true;
+            res.forced = true;
+            delete res.error;
+            continue;
+          }
         }
+        res.forced = true;
+        res.error = "Force quit failed";
       }
     }
   }

@@ -233,6 +233,19 @@ describe("cli parser and dispatcher", () => {
     interactiveSpy.mockRestore();
   });
 
+  it("dispatches to undo command when undo passed", async () => {
+    const undoModule = await import("../src/commands/undo");
+    const undoSpy = vi.spyOn(undoModule, "undoCommand").mockResolvedValue(0);
+
+    const code = await main(["undo"]);
+    expect(code).toBe(0);
+    expect(undoSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ command: "undo" }),
+    );
+
+    undoSpy.mockRestore();
+  });
+
   it("handles check-update with json output", async () => {
     const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -296,6 +309,11 @@ describe("cli parser and dispatcher", () => {
       neverQuitMusic: false,
       musicApps: [],
       autoUpdate: false,
+      protectSystemApps: true,
+      quitTimeoutMs: 8000,
+      confirmThreshold: 4,
+      confirmQuitAll: true,
+      disableQuitTips: false,
     });
     await handleAutoUpdateCheck("1.0.0", {});
     expect(checkSpy).not.toHaveBeenCalled();
@@ -379,6 +397,17 @@ describe("cli parser and dispatcher", () => {
     expect(opts.noUpdateCheck).toBe(true);
   });
 
+  it("parses --music-apps with space and equals forms", () => {
+    const space = parseCliArgs(["--music-apps", "Spotify, TIDAL"]);
+    expect(space.musicApps).toEqual(["Spotify", "TIDAL"]);
+
+    const eq = parseCliArgs(["--music-apps=Music,VLC"]);
+    expect(eq.musicApps).toEqual(["Music", "VLC"]);
+
+    const empty = parseCliArgs(["--music-apps", " , "]);
+    expect(empty.musicApps).toBeUndefined();
+  });
+
   it("parses -m, --memory, -q, --quiet and handles case-insensitivity", () => {
     expect(parseCliArgs(["-m"]).sortBy).toBe("memory");
     expect(parseCliArgs(["--memory"]).sortBy).toBe("memory");
@@ -386,6 +415,12 @@ describe("cli parser and dispatcher", () => {
     expect(parseCliArgs(["--quiet"]).quiet).toBe(true);
     expect(parseCliArgs(["--sort=MEMORY"]).sortBy).toBe("memory");
     expect(parseCliArgs(["--sort", "NAME"]).sortBy).toBe("name");
+    expect(parseCliArgs(["--sort", "CPU"]).sortBy).toBe("cpu");
+    expect(parseCliArgs(["--sort=cpu"]).sortBy).toBe("cpu");
+    expect(() => parseCliArgs(["--sort", "pid"])).toThrow(
+      /Invalid sort option/,
+    );
+    expect(parseCliArgs(["undo"]).command).toBe("undo");
     expect(parseCliArgs(["--on-quit-failure=FORCE"]).onQuitFailure).toBe(
       "force",
     );

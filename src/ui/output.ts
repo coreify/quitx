@@ -1,4 +1,5 @@
 import { cancel, intro, log, outro } from "@clack/prompts";
+import { loadConfig } from "../config";
 import type { AppInfo, QuitResult } from "../types";
 
 export function showIntro(): void {
@@ -65,12 +66,13 @@ OPTIONS:
       --dry-run           Simulate quitting without closing apps
       --keep <apps>       Exclude apps for this run without modifying config
       --except <apps>     Alias for --keep
-      --sort <type>       Sort apps by "name" or "memory"
+      --sort <type>       Sort apps by "name", "memory", or "cpu"
   -m, --memory            Sort apps by memory usage (alias for --sort memory)
   -b, --background        Include background apps in app list
       --include-finder    Include Finder in the app list
       --include-trash     Include Trash in the app list (empties on quit)
       --exclude <apps>    Add apps to persistent exclude list (comma-separated)
+      --music-apps <apps> Protect music apps for this run (comma-separated)
       --check-update      Check for package updates (60s rate limit)
       --no-update-check   Disable automatic update check for this run
       --on-quit-failure <mode> Action on quit failure: prompt, force, or error
@@ -84,6 +86,7 @@ COMMANDS:
   restart [apps]          Quit and immediately reopen applications
   stash                   Record running applications and quit them
   restore                 Reopen applications from the last stash
+  undo                    Reopen recently quit applications
   config [action]         Manage configuration (show, get, set, reset)
   exclude                 Manage excluded applications interactively
   check-update            Check for package updates
@@ -93,11 +96,12 @@ EXAMPLES:
   $ quitx --windowless            Quit apps running with no open windows
   $ quitx --windowless -y         Clean up closed-window apps immediately
   $ quitx --all --keep Spotify    Quit all apps except Spotify (one-time)
-  $ quitx --sort memory           Sort apps by highest RAM consumption
+  $ quitx --sort memory           Sort apps by highest memory consumption
   $ quitx restart Discord         Restart Discord
   $ quitx restart Discord,Slack   Restart Discord and Slack
   $ quitx stash                   Save session and quit running apps
   $ quitx restore                 Reopen previously stashed apps
+  $ quitx undo                    Reopen recently quit apps
   $ quitx --all                   Quit all running apps (with confirmation)
   $ quitx --all --dry-run         Preview quitting all apps without closing them
   $ quitx --all --yes             Quit all running apps immediately
@@ -125,5 +129,6 @@ export function printThanks(options?: {
   quiet?: boolean | undefined;
 }): void {
   if (options?.json || options?.quiet) return;
+  if (loadConfig().disableQuitTips) return;
   console.log(THANKS_MESSAGE);
 }

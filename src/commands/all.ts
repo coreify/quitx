@@ -1,5 +1,6 @@
 import { isCancel, spinner } from "@clack/prompts";
 import { loadConfig } from "../config";
+import { recordQuitResults } from "../config/recent";
 import { getRunningApps } from "../macos/apps";
 import { handleQuitFailures, quitApps } from "../macos/quit";
 import type { CliOptions } from "../types";
@@ -13,7 +14,7 @@ import {
 import { shouldConfirmQuit } from "../ui/selector";
 
 export async function allCommand(options: CliOptions = {}): Promise<number> {
-  if (!options.json) {
+  if (!options.json && !options.quiet) {
     showIntro();
   }
 
@@ -36,6 +37,7 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
     groupBackground: config.groupBackground,
     neverQuitMusic,
     musicApps: options.musicApps ?? config.musicApps,
+    protectSystemApps: config.protectSystemApps,
   });
 
   if (apps.length === 0) {
@@ -52,7 +54,7 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
     return 0;
   }
 
-  if (!options.yes) {
+  if (!options.yes && config.confirmQuitAll !== false) {
     const confirmation = await shouldConfirmQuit(apps.length, true, false);
     if (isCancel(confirmation) || confirmation !== true) {
       showCancel("Cancelled.");
@@ -62,7 +64,7 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
   }
 
   const s = spinner();
-  if (!options.json) {
+  if (!options.json && !options.quiet) {
     s.start(
       options.dryRun
         ? `Simulating quit for ${apps.length} apps...`
@@ -73,20 +75,27 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
   const results = await quitApps(apps, {
     force: useForce,
     dryRun: options.dryRun,
+    timeoutMs: config.quitTimeoutMs,
   });
 
-  if (!options.json) {
+  if (!options.json && !options.quiet) {
     s.stop(options.dryRun ? "Dry run complete" : "Quitting complete");
   }
 
   await handleQuitFailures(results, options, config);
 
+  if (!options.dryRun) {
+    recordQuitResults(results);
+  }
+
   if (!options.json) {
     renderResults(results, options.dryRun);
     const successCount = results.filter((r) => r.success).length;
     const actionVerb = options.dryRun ? "Would quit" : "Quit";
-    showOutro(`${actionVerb} ${successCount} of ${apps.length} apps.`);
-    printThanks(options);
+    if (!options.quiet) {
+      showOutro(`${actionVerb} ${successCount} of ${apps.length} apps.`);
+      printThanks(options);
+    }
   } else {
     console.log(
       JSON.stringify(
@@ -101,5 +110,5 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
     );
   }
 
-  return 0;
+  return results.some((r) => !r.success) ? 1 : 0;
 }

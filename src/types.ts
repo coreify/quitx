@@ -1,6 +1,7 @@
 export interface AppInfo {
   name: string;
   bundleId?: string | undefined;
+  path?: string | undefined;
   pid?: number | undefined;
   pids?: number[] | undefined;
   count?: number | undefined;
@@ -9,6 +10,7 @@ export interface AppInfo {
   windowCount?: number | undefined;
   memoryBytes?: number | undefined;
   memoryFormatted?: string | undefined;
+  cpuUsage?: number | undefined;
 }
 
 export interface QuitResult {
@@ -31,7 +33,12 @@ export interface QuitxConfig {
   neverQuitMusic: boolean;
   musicApps: string[];
   autoUpdate: boolean;
-  sortBy?: "name" | "memory" | undefined;
+  protectSystemApps: boolean;
+  quitTimeoutMs: number;
+  confirmThreshold: number;
+  confirmQuitAll: boolean;
+  disableQuitTips: boolean;
+  sortBy?: "name" | "memory" | "cpu" | undefined;
   onQuitFailure?: OnQuitFailureMode | undefined;
 }
 
@@ -61,8 +68,8 @@ export interface CliOptions {
   noUpdateCheck?: boolean | undefined;
   windowless?: boolean | undefined;
   keep?: string[] | undefined;
-  sortBy?: "name" | "memory" | undefined;
-  command?: "restart" | "stash" | "restore" | undefined;
+  sortBy?: "name" | "memory" | "cpu" | undefined;
+  command?: "restart" | "stash" | "restore" | "undo" | undefined;
   restart?: boolean | undefined;
   stash?: boolean | undefined;
   restore?: boolean | undefined;
@@ -84,4 +91,10 @@ export interface StashAppEntry {
 export interface StashData {
   timestamp: string;
   apps: StashAppEntry[];
+}
+
+export interface RecentlyQuitEntry {
+  name: string;
+  bundleId?: string | undefined;
+  quitAt: string;
 }

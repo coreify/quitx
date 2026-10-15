@@ -187,6 +187,27 @@ describe("output utilities", () => {
     expect(output).toContain("--windowless");
     expect(output).toContain("config");
     expect(output).toContain("exclude");
+    expect(output).toContain("undo");
+    expect(output).toContain('"cpu"');
+    logSpy.mockRestore();
+  });
+
+  it("printThanks respects the disableQuitTips config flag", async () => {
+    const configModule = await import("../src/config");
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const spy = vi.spyOn(configModule, "loadConfig").mockReturnValue({
+      ...configModule.DEFAULT_CONFIG,
+      disableQuitTips: true,
+    });
+    printThanks();
+    expect(logSpy).not.toHaveBeenCalled();
+
+    spy.mockReturnValue(configModule.DEFAULT_CONFIG);
+    printThanks();
+    expect(logSpy).toHaveBeenCalledWith(THANKS_MESSAGE);
+
+    spy.mockRestore();
     logSpy.mockRestore();
   });
 

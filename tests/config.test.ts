@@ -55,7 +55,13 @@ describe("config storage", () => {
       defaultSelectAll: true,
       neverQuitMusic: false,
       autoUpdate: true,
-      musicApps: [],
+      protectSystemApps: true,
+      quitTimeoutMs: 8000,
+      confirmThreshold: 4,
+      confirmQuitAll: true,
+      disableQuitTips: false,
+      musicApps: ["Music", "Spotify", "Deezer", "Tidal", "Doppler"],
+      sortBy: "name",
       onQuitFailure: "prompt",
     });
   });
@@ -72,6 +78,11 @@ describe("config storage", () => {
         defaultSelectAll: true,
         neverQuitMusic: false,
         autoUpdate: true,
+        protectSystemApps: true,
+        quitTimeoutMs: 8000,
+        confirmThreshold: 4,
+        confirmQuitAll: true,
+        disableQuitTips: false,
         musicApps: ["MyCustomPlayer"],
       },
       TEST_FILE,
@@ -102,6 +113,10 @@ describe("config storage", () => {
   });
 
   it("adds and removes custom music apps without duplicates case-insensitively", () => {
+    removeMusicApps(
+      ["Music", "Spotify", "Deezer", "Tidal", "Doppler"],
+      TEST_FILE,
+    );
     addMusicApps(["VLC", "Foobar"], TEST_FILE);
     addMusicApps(["vlc", "Audacity"], TEST_FILE);
 
@@ -195,7 +210,13 @@ describe("config storage", () => {
     expect(DEFAULT_CONFIG.neverQuitMusic).toBe(false);
     expect(DEFAULT_CONFIG.autoUpdate).toBe(true);
     expect(DEFAULT_CONFIG.exclude).toEqual([]);
-    expect(DEFAULT_CONFIG.musicApps).toEqual([]);
+    expect(DEFAULT_CONFIG.musicApps).toEqual([
+      "Music",
+      "Spotify",
+      "Deezer",
+      "Tidal",
+      "Doppler",
+    ]);
     expect(DEFAULT_CONFIG.onQuitFailure).toBe("prompt");
   });
 
@@ -267,6 +288,10 @@ describe("config storage", () => {
   });
 
   it("addMusicApps ignores empty and whitespace-only strings", () => {
+    removeMusicApps(
+      ["Music", "Spotify", "Deezer", "Tidal", "Doppler"],
+      TEST_FILE,
+    );
     addMusicApps(["", "\t", "Audacity"], TEST_FILE);
     const loaded = loadConfig(TEST_FILE);
     expect(loaded.musicApps).toEqual(["Audacity"]);
@@ -280,6 +305,10 @@ describe("config storage", () => {
   });
 
   it("removeMusicApps leaves list untouched if target apps are not in list", () => {
+    removeMusicApps(
+      ["Music", "Spotify", "Deezer", "Tidal", "Doppler"],
+      TEST_FILE,
+    );
     addMusicApps(["Spotify"], TEST_FILE);
     removeMusicApps(["NonExistentPlayer"], TEST_FILE);
     const loaded = loadConfig(TEST_FILE);

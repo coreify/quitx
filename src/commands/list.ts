@@ -22,6 +22,7 @@ export async function listCommand(options: CliOptions = {}): Promise<number> {
     groupBackground: config.groupBackground,
     neverQuitMusic,
     musicApps: options.musicApps ?? config.musicApps,
+    protectSystemApps: config.protectSystemApps,
     includeMemory: options.sortBy === "memory" || options.json === true,
   });
 

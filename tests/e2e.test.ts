@@ -21,6 +21,11 @@ describe("E2E Integration: Features 1, 2 & 3", () => {
       neverQuitMusic: false,
       musicApps: [],
       autoUpdate: true,
+      protectSystemApps: true,
+      quitTimeoutMs: 8000,
+      confirmThreshold: 4,
+      confirmQuitAll: true,
+      disableQuitTips: false,
     };
 
     vi.spyOn(configModule, "loadConfig").mockImplementation(

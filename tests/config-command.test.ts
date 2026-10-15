@@ -47,6 +47,12 @@ const fullConfig = (overrides: Partial<QuitxConfig> = {}): QuitxConfig => ({
   neverQuitMusic: false,
   musicApps: [],
   autoUpdate: true,
+  protectSystemApps: true,
+  quitTimeoutMs: 8000,
+  confirmThreshold: 4,
+  confirmQuitAll: true,
+  disableQuitTips: false,
+  sortBy: "name",
   onQuitFailure: "prompt",
   ...overrides,
 });
@@ -283,6 +289,63 @@ describe("config command", () => {
     expect(mockLogSuccess).toHaveBeenCalledWith(
       "Group background instances: disabled",
     );
+  });
+
+  it("toggles confirm quit all to disabled", async () => {
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(fullConfig());
+    const saveSpy = vi
+      .spyOn(configModule, "saveConfig")
+      .mockImplementation(() => {});
+
+    mockSelect
+      .mockResolvedValueOnce("confirm-quit-all")
+      .mockResolvedValueOnce("disabled")
+      .mockResolvedValueOnce("exit");
+
+    const code = await configCommand();
+    expect(code).toBe(0);
+    expect(saveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ confirmQuitAll: false }),
+    );
+    expect(mockLogSuccess).toHaveBeenCalledWith("Confirm quit all: disabled");
+  });
+
+  it("toggles quit tips to hidden", async () => {
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(fullConfig());
+    const saveSpy = vi
+      .spyOn(configModule, "saveConfig")
+      .mockImplementation(() => {});
+
+    mockSelect
+      .mockResolvedValueOnce("quit-tips")
+      .mockResolvedValueOnce("disabled")
+      .mockResolvedValueOnce("exit");
+
+    const code = await configCommand();
+    expect(code).toBe(0);
+    expect(saveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ disableQuitTips: true }),
+    );
+    expect(mockLogSuccess).toHaveBeenCalledWith("Quit tips message: hidden");
+  });
+
+  it("sets default sorting to cpu via sort-by menu", async () => {
+    vi.spyOn(configModule, "loadConfig").mockReturnValue(fullConfig());
+    const saveSpy = vi
+      .spyOn(configModule, "saveConfig")
+      .mockImplementation(() => {});
+
+    mockSelect
+      .mockResolvedValueOnce("sort-by")
+      .mockResolvedValueOnce("cpu")
+      .mockResolvedValueOnce("exit");
+
+    const code = await configCommand();
+    expect(code).toBe(0);
+    expect(saveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ sortBy: "cpu" }),
+    );
+    expect(mockLogSuccess).toHaveBeenCalledWith("Default sorting set to: cpu");
   });
 
   it("toggles never quit music apps to enabled", async () => {
@@ -608,6 +671,122 @@ describe("config command", () => {
       errorSpy.mockRestore();
     });
 
+    it("handles set/get for protectSystemApps, quitTimeoutMs, confirmThreshold", async () => {
+      const cfg = fullConfig();
+      vi.spyOn(configModule, "loadConfig").mockReturnValue(cfg);
+      const saveSpy = vi
+        .spyOn(configModule, "saveConfig")
+        .mockImplementation(() => {});
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      // Boolean key
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "protectSystemApps",
+          configValue: "false",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ protectSystemApps: false }),
+      );
+
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "protectSystemApps",
+          configValue: "maybe",
+        }),
+      ).toBe(1);
+
+      // Valid integer
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "quitTimeoutMs",
+          configValue: "12000",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ quitTimeoutMs: 12000 }),
+      );
+
+      // Out of range
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "quitTimeoutMs",
+          configValue: "500",
+        }),
+      ).toBe(1);
+
+      // Non-numeric
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "quitTimeoutMs",
+          configValue: "fast",
+        }),
+      ).toBe(1);
+
+      // Float rejected
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "confirmThreshold",
+          configValue: "2.5",
+        }),
+      ).toBe(1);
+
+      // Valid threshold
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "confirmThreshold",
+          configValue: "6",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ confirmThreshold: 6 }),
+      );
+
+      // Threshold out of range
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "confirmThreshold",
+          configValue: "0",
+        }),
+      ).toBe(1);
+
+      // Get new keys
+      vi.spyOn(configModule, "loadConfig").mockReturnValue(
+        fullConfig({
+          protectSystemApps: false,
+          quitTimeoutMs: 4000,
+          confirmThreshold: 2,
+        }),
+      );
+      expect(
+        await handleConfigCli({
+          configAction: "get",
+          configKey: "protectSystemApps",
+        }),
+      ).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith("false");
+      expect(
+        await handleConfigCli({
+          configAction: "get",
+          configKey: "quitTimeoutMs",
+        }),
+      ).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith("4000");
+
+      logSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
+
     it("handles reset action with prompt confirmation, cancellation, --yes and --json", async () => {
       const saveSpy = vi
         .spyOn(configModule, "saveConfig")
@@ -719,8 +898,80 @@ describe("config command", () => {
         expect.stringContaining('Invalid value for sortBy: "invalid-sort"'),
       );
 
+      // set sortBy cpu
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "sortBy",
+          configValue: "cpu",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ sortBy: "cpu" }),
+      );
+
       logSpy.mockRestore();
       errorSpy.mockRestore();
+    });
+
+    it("handles set/get for confirmQuitAll and disableQuitTips", async () => {
+      const saveSpy = vi
+        .spyOn(configModule, "saveConfig")
+        .mockImplementation(() => {});
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      vi.spyOn(configModule, "loadConfig").mockReturnValue(fullConfig());
+
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "confirmQuitAll",
+          configValue: "false",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ confirmQuitAll: false }),
+      );
+
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "confirmQuitAll",
+          configValue: "maybe",
+        }),
+      ).toBe(1);
+
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "disableQuitTips",
+          configValue: "true",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ disableQuitTips: true }),
+      );
+
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "disableQuitTips",
+          configValue: "perhaps",
+        }),
+      ).toBe(1);
+
+      vi.spyOn(configModule, "loadConfig").mockReturnValue(
+        fullConfig({ confirmQuitAll: false, disableQuitTips: true }),
+      );
+      expect(
+        await handleConfigCli({
+          configAction: "get",
+          configKey: "confirmQuitAll",
+        }),
+      ).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith("false");
+
+      logSpy.mockRestore();
     });
 
     it("handles unknown config action gracefully", async () => {

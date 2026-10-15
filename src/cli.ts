@@ -8,6 +8,7 @@ import { listCommand } from "./commands/list";
 import { restartCommand } from "./commands/restart";
 import { restoreCommand } from "./commands/restore";
 import { stashCommand } from "./commands/stash";
+import { undoCommand } from "./commands/undo";
 import { loadConfig } from "./config";
 import type { CliOptions } from "./types";
 import {
@@ -107,6 +108,8 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
     } else if (arg === "restore" && !options.command) {
       options.command = "restore";
       options.restore = true;
+    } else if (arg === "undo" && !options.command) {
+      options.command = "undo";
     } else if (arg === "check-update" || arg === "--check-update") {
       options.checkUpdate = true;
     } else if (arg === "--no-update-check") {
@@ -135,6 +138,16 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
       options.includeBackground = true;
     } else if (arg === "--never-quit-music") {
       options.neverQuitMusic = true;
+    } else if (arg === "--music-apps" || arg.startsWith("--music-apps=")) {
+      const isEq = arg.startsWith("--music-apps=");
+      const val = isEq ? arg.slice("--music-apps=".length) : (args[++i] ?? "");
+      const split = val
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (split.length > 0) {
+        options.musicApps = split;
+      }
     } else if (arg === "--config") {
       options.manageConfig = true;
     } else if (arg === "--exclude") {
@@ -181,10 +194,12 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
       const isEq = arg.startsWith("--sort=");
       const val = isEq ? arg.slice("--sort=".length).trim() : args[++i];
       const lower = val?.toLowerCase();
-      if (lower === "memory" || lower === "name") {
+      if (lower === "memory" || lower === "name" || lower === "cpu") {
         options.sortBy = lower;
       } else {
-        const usage = isEq ? "--sort=[name|memory]" : "--sort [name|memory]";
+        const usage = isEq
+          ? "--sort=[name|memory|cpu]"
+          : "--sort [name|memory|cpu]";
         throw new Error(`Invalid sort option: "${val}". Usage: ${usage}`);
       }
     } else if (
@@ -207,7 +222,9 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
         );
       }
     } else if (arg.startsWith("-")) {
-      continue;
+      throw new Error(
+        `Unknown option: "${arg}". Run "quitx --help" for usage.`,
+      );
     } else {
       rawPositional.push(arg);
     }
@@ -255,8 +272,12 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
         .map((s) => s.trim())
         .filter(Boolean);
       options.apps?.push(...split);
-    } else if (options.command === "stash" || options.command === "restore") {
-      // no positional arguments expected for stash or restore
+    } else if (
+      options.command === "stash" ||
+      options.command === "restore" ||
+      options.command === "undo"
+    ) {
+      // no positional arguments expected for stash, restore, or undo
     } else {
       if (
         rawPositional.length > 1 &&
@@ -389,6 +410,7 @@ export async function handleAutoUpdateCheck(
 
     if (
       options.json ||
+      options.quiet ||
       options.yes ||
       !process.stdin.isTTY ||
       !process.stdout.isTTY
@@ -504,6 +526,10 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
 
     if (options.command === "restore" || options.restore) {
       return await restoreCommand(options);
+    }
+
+    if (options.command === "undo") {
+      return await undoCommand(options);
     }
 
     if (options.list) {

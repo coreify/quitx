@@ -1,8 +1,10 @@
 import { loadConfig } from "../config";
 import type { AppInfo, QuitxConfig } from "../types";
 import { APPKIT_PREAMBLE, RUNNING_APPS, buildAppMatcherScript } from "./jxa";
+import { enrichAppsWithCpu } from "./cpu";
 import { enrichAppsWithMemory } from "./memory";
 import { runJXA, type ScriptExecutor } from "./osascript";
+import { isQuitxSelf, isSystemProtectedApp } from "./system-apps";
 
 export function buildDiscoveryScript(includeBackground = false): string {
   const bg = includeBackground ? "true" : "false";
@@ -50,7 +52,15 @@ function run() {
       }
     }
     const winCount = winInfoSuccess ? String(winCountByPid[app.processIdentifier] || 0) : '';
-    lines.push(name + '\\t' + bundleId + '\\t' + pid + '\\t' + isBg + '\\t' + isMusic + '\\t' + winCount);
+    let path = '';
+    try {
+      if (app.bundleURL) {
+        path = app.bundleURL.path ? app.bundleURL.path.js : '';
+      } else if (app.executableURL) {
+        path = app.executableURL.path ? app.executableURL.path.js : '';
+      }
+    } catch (e) {}
+    lines.push(name + '\\t' + bundleId + '\\t' + pid + '\\t' + isBg + '\\t' + isMusic + '\\t' + winCount + '\\t' + path);
   }
   return lines.join('\\n');
 }`.trim();
@@ -130,6 +140,12 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
           ? winCountNum
           : undefined;
 
+      const rawPath = parts[6]?.trim();
+      const path =
+        rawPath && rawPath.length > 0 && rawPath !== "missing value"
+          ? rawPath
+          : undefined;
+
       let name = rawName;
       if (bundleId && rawName === bundleId) {
         name = formatDynamicName(bundleId);
@@ -138,6 +154,7 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
       results.push({
         name,
         bundleId,
+        path,
         pid,
         ...(isBackground ? { isBackground: true } : {}),
         ...(isMusic ? { isMusic: true } : {}),
@@ -159,7 +176,7 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
 
 export function sortApps(
   apps: readonly AppInfo[],
-  sortBy: "name" | "memory" = "name",
+  sortBy: "name" | "memory" | "cpu" = "name",
 ): AppInfo[] {
   return [...apps].sort((a, b) => {
     if (sortBy === "memory") {
@@ -167,6 +184,12 @@ export function sortApps(
       const memB = b.memoryBytes ?? 0;
       if (memB !== memA) {
         return memB - memA;
+      }
+    } else if (sortBy === "cpu") {
+      const cpuA = a.cpuUsage ?? 0;
+      const cpuB = b.cpuUsage ?? 0;
+      if (cpuB !== cpuA) {
+        return cpuB - cpuA;
       }
     }
     return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
@@ -240,12 +263,13 @@ export interface FilterOptions {
   exclude?: readonly string[] | undefined;
   keep?: readonly string[] | undefined;
   windowless?: boolean | undefined;
-  sortBy?: "name" | "memory" | undefined;
+  sortBy?: "name" | "memory" | "cpu" | undefined;
   includeFinder?: boolean | undefined;
   includeTrash?: boolean | undefined;
   groupBackground?: boolean | undefined;
   neverQuitMusic?: boolean | undefined;
   musicApps?: readonly string[] | undefined;
+  protectSystemApps?: boolean | undefined;
 }
 
 export function filterApps(
@@ -264,6 +288,7 @@ export function filterApps(
   const groupBackground = opts.groupBackground ?? true;
   const neverQuitMusic = opts.neverQuitMusic ?? false;
   const customMusicApps = opts.musicApps ?? [];
+  const protectSystemApps = opts.protectSystemApps ?? true;
 
   const excludeSet = new Set(exclude.map((e) => e.toLowerCase().trim()));
   const keepSet = new Set(keep.map((k) => k.toLowerCase().trim()));
@@ -273,7 +298,11 @@ export function filterApps(
     const nameLower = app.name.toLowerCase().trim();
     const bundleLower = app.bundleId?.toLowerCase().trim();
 
-    if (nameLower === "quitx" || bundleLower === "com.kiron.quitx") {
+    if (isQuitxSelf(app)) {
+      continue;
+    }
+
+    if (protectSystemApps && isSystemProtectedApp(app)) {
       continue;
     }
 
@@ -391,13 +420,14 @@ export interface GetRunningAppsOptions {
   exclude?: readonly string[] | undefined;
   keep?: readonly string[] | undefined;
   windowless?: boolean | undefined;
-  sortBy?: "name" | "memory" | undefined;
+  sortBy?: "name" | "memory" | "cpu" | undefined;
   includeFinder?: boolean | undefined;
   includeTrash?: boolean | undefined;
   includeBackground?: boolean | undefined;
   groupBackground?: boolean | undefined;
   neverQuitMusic?: boolean | undefined;
   musicApps?: readonly string[] | undefined;
+  protectSystemApps?: boolean | undefined;
   includeMemory?: boolean | undefined;
 }
 
@@ -428,6 +458,7 @@ export async function getRunningApps(
       groupBackground: opts.groupBackground ?? true,
       neverQuitMusic: opts.neverQuitMusic ?? false,
       musicApps: opts.musicApps ?? [],
+      protectSystemApps: opts.protectSystemApps ?? true,
     };
     includeBackground = opts.includeBackground ?? false;
     includeMemory = opts.includeMemory ?? false;
@@ -441,6 +472,7 @@ export async function getRunningApps(
       groupBackground: config.groupBackground,
       neverQuitMusic: config.neverQuitMusic,
       musicApps: config.musicApps,
+      protectSystemApps: config.protectSystemApps,
       sortBy: config.sortBy,
     };
     includeBackground = config.includeBackground;
@@ -455,6 +487,11 @@ export async function getRunningApps(
 
   if (includeMemory || filterOpts.sortBy === "memory") {
     await enrichAppsWithMemory(filtered);
+    return sortApps(filtered, filterOpts.sortBy);
+  }
+
+  if (filterOpts.sortBy === "cpu") {
+    await enrichAppsWithCpu(filtered);
     return sortApps(filtered, filterOpts.sortBy);
   }
 
@@ -478,6 +515,7 @@ export async function getRunningAppsForConfig(
       groupBackground: options.groupBackground ?? config.groupBackground,
       neverQuitMusic: options.neverQuitMusic ?? config.neverQuitMusic,
       musicApps: options.musicApps ?? config.musicApps,
+      protectSystemApps: options.protectSystemApps ?? config.protectSystemApps,
       includeMemory: options.includeMemory,
     },
     executor,
@@ -538,6 +576,6 @@ export async function isAppRunning(
     const res = await runJXA(IS_APP_RUNNING_SCRIPT, [name, bundleId], executor);
     return res.trim().toLowerCase() === "true";
   } catch {
-    return false;
+    return true;
   }
 }

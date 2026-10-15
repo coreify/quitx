@@ -63,7 +63,10 @@ describe("handleQuitFailures", () => {
   });
 
   it("auto force-quits when onQuitFailure is 'force' via config", async () => {
-    const killSpy = vi.spyOn(process, "kill").mockReturnValue(true);
+    const killSpy = vi.spyOn(process, "kill").mockImplementation((pid, sig) => {
+      if (sig === 0) throw new Error("ESRCH");
+      return true;
+    });
     const results = [{ ...failedResult }];
     const config: Partial<QuitxConfig> = { onQuitFailure: "force" };
 
@@ -77,7 +80,10 @@ describe("handleQuitFailures", () => {
   });
 
   it("auto force-quits when --on-quit-failure=force is passed via options", async () => {
-    const killSpy = vi.spyOn(process, "kill").mockReturnValue(true);
+    const killSpy = vi.spyOn(process, "kill").mockImplementation((pid, sig) => {
+      if (sig === 0) throw new Error("ESRCH");
+      return true;
+    });
     const results = [{ ...failedResult }];
     const options: CliOptions = { onQuitFailure: "force" };
     const config: Partial<QuitxConfig> = { onQuitFailure: "prompt" };
@@ -108,7 +114,10 @@ describe("handleQuitFailures", () => {
 
   it("prompts user and force-quits when user confirms yes", async () => {
     mockConfirm.mockResolvedValue(true);
-    const killSpy = vi.spyOn(process, "kill").mockReturnValue(true);
+    const killSpy = vi.spyOn(process, "kill").mockImplementation((pid, sig) => {
+      if (sig === 0) throw new Error("ESRCH");
+      return true;
+    });
     const results = [{ ...failedResult }];
 
     const out = await handleQuitFailures(
