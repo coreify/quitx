@@ -31,6 +31,9 @@ export interface QuitxConfig {
   neverQuitMusic: boolean;
   musicApps: string[];
   autoUpdate: boolean;
+  protectSystemApps: boolean;
+  quitTimeoutMs: number;
+  confirmThreshold: number;
   sortBy?: "name" | "memory" | undefined;
   onQuitFailure?: OnQuitFailureMode | undefined;
 }

@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 1.3.2
 
+### Added
+
+- System-protected app safeguard: Dock, SystemUIServer, Control Center, NotificationCenter, Spotlight, loginwindow, WindowManager, and Dock Extra are hidden from lists and hard-blocked from quitting (no force override). Toggle with the new `protectSystemApps` config key (default `true`).
+- New config options: `protectSystemApps` (bool), `quitTimeoutMs` (1000–60000, default `8000`) controlling how long quit waits before reporting failure, and `confirmThreshold` (1–50, default `4`) controlling how many selected apps trigger the confirmation prompt. All three editable via the config menu and `quitx config set <key> <value>`.
+- `--music-apps <apps>` CLI flag to add apps to the music-protect list for a single run.
+- AppleScript quit fallback is also attempted when the JXA terminate call returns non-`true` (previously only on JXA errors), improving quit reliability for apps with save prompts.
+
 ### Fixed
 
+- Force-quit failure handling now verifies the process actually exited after `SIGKILL` instead of assuming success.
+- `isAppRunning` treats script execution failures conservatively (reports running) so an osascript error can no longer produce a false "quit succeeded" result.
 - Restore no longer discards the stash when one or more apps fail to reopen: failed apps are kept in the stash so `quitx restore` can be retried.
 - Non-zero exit codes on partial failures: `quitx`, `quitx --all`, `quitx restart`, `quitx stash`, and `quitx restore` now exit with code `1` when any targeted app fails to quit/restart/restore, enabling script and CI detection.
 - `--quiet` now fully suppresses informational chrome (intro banner, spinners, progress/outro messages) as documented, while still printing per-app results and JSON output.

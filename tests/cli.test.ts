@@ -296,6 +296,9 @@ describe("cli parser and dispatcher", () => {
       neverQuitMusic: false,
       musicApps: [],
       autoUpdate: false,
+      protectSystemApps: true,
+      quitTimeoutMs: 8000,
+      confirmThreshold: 4,
     });
     await handleAutoUpdateCheck("1.0.0", {});
     expect(checkSpy).not.toHaveBeenCalled();
@@ -377,6 +380,17 @@ describe("cli parser and dispatcher", () => {
     expect(opts.includeTrash).toBe(true);
     expect(opts.neverQuitMusic).toBe(true);
     expect(opts.noUpdateCheck).toBe(true);
+  });
+
+  it("parses --music-apps with space and equals forms", () => {
+    const space = parseCliArgs(["--music-apps", "Spotify, TIDAL"]);
+    expect(space.musicApps).toEqual(["Spotify", "TIDAL"]);
+
+    const eq = parseCliArgs(["--music-apps=Music,VLC"]);
+    expect(eq.musicApps).toEqual(["Music", "VLC"]);
+
+    const empty = parseCliArgs(["--music-apps", " , "]);
+    expect(empty.musicApps).toBeUndefined();
   });
 
   it("parses -m, --memory, -q, --quiet and handles case-insensitivity", () => {

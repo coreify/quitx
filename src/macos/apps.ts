@@ -3,6 +3,7 @@ import type { AppInfo, QuitxConfig } from "../types";
 import { APPKIT_PREAMBLE, RUNNING_APPS, buildAppMatcherScript } from "./jxa";
 import { enrichAppsWithMemory } from "./memory";
 import { runJXA, type ScriptExecutor } from "./osascript";
+import { isSystemProtectedApp } from "./system-apps";
 
 export function buildDiscoveryScript(includeBackground = false): string {
   const bg = includeBackground ? "true" : "false";
@@ -246,6 +247,7 @@ export interface FilterOptions {
   groupBackground?: boolean | undefined;
   neverQuitMusic?: boolean | undefined;
   musicApps?: readonly string[] | undefined;
+  protectSystemApps?: boolean | undefined;
 }
 
 export function filterApps(
@@ -264,6 +266,7 @@ export function filterApps(
   const groupBackground = opts.groupBackground ?? true;
   const neverQuitMusic = opts.neverQuitMusic ?? false;
   const customMusicApps = opts.musicApps ?? [];
+  const protectSystemApps = opts.protectSystemApps ?? true;
 
   const excludeSet = new Set(exclude.map((e) => e.toLowerCase().trim()));
   const keepSet = new Set(keep.map((k) => k.toLowerCase().trim()));
@@ -274,6 +277,10 @@ export function filterApps(
     const bundleLower = app.bundleId?.toLowerCase().trim();
 
     if (nameLower === "quitx" || bundleLower === "com.kiron.quitx") {
+      continue;
+    }
+
+    if (protectSystemApps && isSystemProtectedApp(app)) {
       continue;
     }
 
@@ -398,6 +405,7 @@ export interface GetRunningAppsOptions {
   groupBackground?: boolean | undefined;
   neverQuitMusic?: boolean | undefined;
   musicApps?: readonly string[] | undefined;
+  protectSystemApps?: boolean | undefined;
   includeMemory?: boolean | undefined;
 }
 
@@ -428,6 +436,7 @@ export async function getRunningApps(
       groupBackground: opts.groupBackground ?? true,
       neverQuitMusic: opts.neverQuitMusic ?? false,
       musicApps: opts.musicApps ?? [],
+      protectSystemApps: opts.protectSystemApps ?? true,
     };
     includeBackground = opts.includeBackground ?? false;
     includeMemory = opts.includeMemory ?? false;
@@ -441,6 +450,7 @@ export async function getRunningApps(
       groupBackground: config.groupBackground,
       neverQuitMusic: config.neverQuitMusic,
       musicApps: config.musicApps,
+      protectSystemApps: config.protectSystemApps,
       sortBy: config.sortBy,
     };
     includeBackground = config.includeBackground;
@@ -478,6 +488,7 @@ export async function getRunningAppsForConfig(
       groupBackground: options.groupBackground ?? config.groupBackground,
       neverQuitMusic: options.neverQuitMusic ?? config.neverQuitMusic,
       musicApps: options.musicApps ?? config.musicApps,
+      protectSystemApps: options.protectSystemApps ?? config.protectSystemApps,
       includeMemory: options.includeMemory,
     },
     executor,
@@ -538,6 +549,6 @@ export async function isAppRunning(
     const res = await runJXA(IS_APP_RUNNING_SCRIPT, [name, bundleId], executor);
     return res.trim().toLowerCase() === "true";
   } catch {
-    return false;
+    return true;
   }
 }

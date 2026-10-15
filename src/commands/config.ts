@@ -427,6 +427,76 @@ function resetConfig(): void {
   log.success("Config reset to defaults.");
 }
 
+async function toggleProtectSystemApps(): Promise<void> {
+  const config = loadConfig();
+  const choice = await select({
+    message: `Protect system apps (current: ${config.protectSystemApps ? "enabled" : "disabled"})`,
+    options: [
+      {
+        value: "enabled",
+        label: "Enabled",
+        hint: "Dock, SystemUIServer, Control Center, NotificationCenter, Spotlight, and loginwindow are hidden and refuse to quit. Recommended.",
+      },
+      {
+        value: "disabled",
+        label: "Disabled",
+        hint: "System UI apps appear in the list and can be quit. Only for advanced troubleshooting.",
+      },
+      backOption(),
+    ],
+    initialValue: config.protectSystemApps ? "enabled" : "disabled",
+  });
+
+  if (isCancel(choice) || choice === BACK_VALUE) return;
+  config.protectSystemApps = choice === "enabled";
+  saveConfig(config);
+  log.success(
+    `Protect system apps: ${config.protectSystemApps ? "enabled" : "disabled"}`,
+  );
+}
+
+async function promptQuitTimeout(): Promise<void> {
+  const config = loadConfig();
+  const choice = await select({
+    message: `Quit timeout (current: ${config.quitTimeoutMs}ms)`,
+    options: [
+      { value: "4000", label: "4000ms", hint: "Fast — may fail on slow apps" },
+      { value: "8000", label: "8000ms", hint: "Default — balanced" },
+      { value: "12000", label: "12000ms", hint: "Patient — for busy apps" },
+      { value: "20000", label: "20000ms", hint: "Very patient" },
+      backOption(),
+    ],
+    initialValue: String(config.quitTimeoutMs),
+  });
+
+  if (isCancel(choice) || choice === BACK_VALUE) return;
+  config.quitTimeoutMs = Number(choice);
+  saveConfig(config);
+  log.success(`Quit timeout set to ${config.quitTimeoutMs}ms`);
+}
+
+async function promptConfirmThreshold(): Promise<void> {
+  const config = loadConfig();
+  const choice = await select({
+    message: `Confirm quit threshold (current: ${config.confirmThreshold}+ apps)`,
+    options: [
+      { value: "1", label: "1+ apps", hint: "Always confirm" },
+      { value: "2", label: "2+ apps" },
+      { value: "3", label: "3+ apps" },
+      { value: "4", label: "4+ apps", hint: "Default" },
+      { value: "5", label: "5+ apps" },
+      { value: "10", label: "10+ apps", hint: "Rarely confirm" },
+      backOption(),
+    ],
+    initialValue: String(config.confirmThreshold),
+  });
+
+  if (isCancel(choice) || choice === BACK_VALUE) return;
+  config.confirmThreshold = Number(choice);
+  saveConfig(config);
+  log.success(`Confirm threshold set to ${config.confirmThreshold}+ apps`);
+}
+
 async function toggleSortBy(): Promise<void> {
   const config = loadConfig();
   const current = config.sortBy ?? "name";
@@ -556,6 +626,21 @@ export async function configCommand(): Promise<number> {
           hint: `current: ${config.onQuitFailure ?? "prompt"}`,
         },
         {
+          value: "protect-system",
+          label: "Protect system apps",
+          hint: `current: ${config.protectSystemApps ? "enabled" : "disabled"}`,
+        },
+        {
+          value: "quit-timeout",
+          label: "Quit timeout (ms)",
+          hint: `current: ${config.quitTimeoutMs}ms`,
+        },
+        {
+          value: "confirm-threshold",
+          label: "Confirm quit threshold",
+          hint: `current: ${config.confirmThreshold}+ apps`,
+        },
+        {
           value: "reset",
           label: "Reset all",
           hint: "restore all settings to defaults",
@@ -581,6 +666,9 @@ export async function configCommand(): Promise<number> {
     if (choice === "custom-music") await manageCustomMusicApps();
     if (choice === "sort-by") await toggleSortBy();
     if (choice === "on-quit-failure") await toggleOnQuitFailure();
+    if (choice === "protect-system") await toggleProtectSystemApps();
+    if (choice === "quit-timeout") await promptQuitTimeout();
+    if (choice === "confirm-threshold") await promptConfirmThreshold();
     if (choice === "reset") resetConfig();
   }
 
@@ -600,6 +688,9 @@ export const VALID_CONFIG_KEYS = [
   "neverQuitMusic",
   "musicApps",
   "autoUpdate",
+  "protectSystemApps",
+  "quitTimeoutMs",
+  "confirmThreshold",
   "sortBy",
   "onQuitFailure",
 ] as const;
@@ -703,7 +794,8 @@ export async function handleConfigCli(
       key === "groupBackground" ||
       key === "defaultSelectAll" ||
       key === "neverQuitMusic" ||
-      key === "autoUpdate"
+      key === "autoUpdate" ||
+      key === "protectSystemApps"
     ) {
       const lower = raw.toLowerCase();
       if (["true", "1", "yes", "on", "enable", "enabled"].includes(lower)) {
@@ -718,6 +810,22 @@ export async function handleConfigCli(
         );
         return 1;
       }
+    } else if (key === "quitTimeoutMs" || key === "confirmThreshold") {
+      const num = Number(raw);
+      const min = key === "quitTimeoutMs" ? 1000 : 1;
+      const max = key === "quitTimeoutMs" ? 60000 : 50;
+      if (
+        !Number.isFinite(num) ||
+        !Number.isInteger(num) ||
+        num < min ||
+        num > max
+      ) {
+        console.error(
+          `✖ Invalid value for ${key}: "${raw}". Must be an integer between ${min} and ${max}.`,
+        );
+        return 1;
+      }
+      config[key] = num;
     } else if (key === "exclude" || key === "musicApps") {
       const items = raw
         .split(",")

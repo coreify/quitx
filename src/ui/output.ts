@@ -71,6 +71,7 @@ OPTIONS:
       --include-finder    Include Finder in the app list
       --include-trash     Include Trash in the app list (empties on quit)
       --exclude <apps>    Add apps to persistent exclude list (comma-separated)
+      --music-apps <apps> Protect music apps for this run (comma-separated)
       --check-update      Check for package updates (60s rate limit)
       --no-update-check   Disable automatic update check for this run
       --on-quit-failure <mode> Action on quit failure: prompt, force, or error

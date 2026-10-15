@@ -42,6 +42,7 @@ export async function manageExcludeInteractive(): Promise<number> {
       includeFinder: currentConfig.includeFinder,
       includeBackground: currentConfig.includeBackground,
       groupBackground: currentConfig.groupBackground,
+      protectSystemApps: currentConfig.protectSystemApps,
     });
 
     if (available.length === 0) {

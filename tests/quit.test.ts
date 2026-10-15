@@ -42,10 +42,20 @@ describe("quit service", () => {
     ]);
   });
 
-  it("sendQuitSignal throws when terminate returns false", async () => {
-    const mockExecutor: ScriptExecutor = vi.fn().mockResolvedValue({
-      stdout: "false",
-    });
+  it("sendQuitSignal throws when both JXA and AppleScript fallback fail", async () => {
+    const mockExecutor: ScriptExecutor = vi
+      .fn()
+      .mockImplementation(
+        (
+          _cmd: string,
+          args: readonly string[],
+        ): Promise<{ stdout: string }> => {
+          if (args[0] === "-l") {
+            return Promise.resolve({ stdout: "false" });
+          }
+          return Promise.reject(new Error("AppleScript failed"));
+        },
+      );
     const app: AppInfo = { name: "DirectApp" };
 
     await expect(sendQuitSignal(app, mockExecutor)).rejects.toThrow(

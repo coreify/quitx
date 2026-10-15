@@ -48,6 +48,9 @@ const fullConfig = (overrides: Partial<QuitxConfig> = {}): QuitxConfig => ({
   neverQuitMusic: false,
   musicApps: [],
   autoUpdate: true,
+  protectSystemApps: true,
+  quitTimeoutMs: 8000,
+  confirmThreshold: 4,
   ...overrides,
 });
 

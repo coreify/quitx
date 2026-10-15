@@ -47,6 +47,10 @@ const fullConfig = (overrides: Partial<QuitxConfig> = {}): QuitxConfig => ({
   neverQuitMusic: false,
   musicApps: [],
   autoUpdate: true,
+  protectSystemApps: true,
+  quitTimeoutMs: 8000,
+  confirmThreshold: 4,
+  sortBy: "name",
   onQuitFailure: "prompt",
   ...overrides,
 });
@@ -603,6 +607,122 @@ describe("config command", () => {
       expect(logSpy).toHaveBeenCalledWith(
         JSON.stringify({ autoUpdate: true }, null, 2),
       );
+
+      logSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
+
+    it("handles set/get for protectSystemApps, quitTimeoutMs, confirmThreshold", async () => {
+      const cfg = fullConfig();
+      vi.spyOn(configModule, "loadConfig").mockReturnValue(cfg);
+      const saveSpy = vi
+        .spyOn(configModule, "saveConfig")
+        .mockImplementation(() => {});
+      const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      // Boolean key
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "protectSystemApps",
+          configValue: "false",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ protectSystemApps: false }),
+      );
+
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "protectSystemApps",
+          configValue: "maybe",
+        }),
+      ).toBe(1);
+
+      // Valid integer
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "quitTimeoutMs",
+          configValue: "12000",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ quitTimeoutMs: 12000 }),
+      );
+
+      // Out of range
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "quitTimeoutMs",
+          configValue: "500",
+        }),
+      ).toBe(1);
+
+      // Non-numeric
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "quitTimeoutMs",
+          configValue: "fast",
+        }),
+      ).toBe(1);
+
+      // Float rejected
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "confirmThreshold",
+          configValue: "2.5",
+        }),
+      ).toBe(1);
+
+      // Valid threshold
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "confirmThreshold",
+          configValue: "6",
+        }),
+      ).toBe(0);
+      expect(saveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ confirmThreshold: 6 }),
+      );
+
+      // Threshold out of range
+      expect(
+        await handleConfigCli({
+          configAction: "set",
+          configKey: "confirmThreshold",
+          configValue: "0",
+        }),
+      ).toBe(1);
+
+      // Get new keys
+      vi.spyOn(configModule, "loadConfig").mockReturnValue(
+        fullConfig({
+          protectSystemApps: false,
+          quitTimeoutMs: 4000,
+          confirmThreshold: 2,
+        }),
+      );
+      expect(
+        await handleConfigCli({
+          configAction: "get",
+          configKey: "protectSystemApps",
+        }),
+      ).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith("false");
+      expect(
+        await handleConfigCli({
+          configAction: "get",
+          configKey: "quitTimeoutMs",
+        }),
+      ).toBe(0);
+      expect(logSpy).toHaveBeenCalledWith("4000");
 
       logSpy.mockRestore();
       errorSpy.mockRestore();

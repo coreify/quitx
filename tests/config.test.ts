@@ -55,7 +55,11 @@ describe("config storage", () => {
       defaultSelectAll: true,
       neverQuitMusic: false,
       autoUpdate: true,
+      protectSystemApps: true,
+      quitTimeoutMs: 8000,
+      confirmThreshold: 4,
       musicApps: [],
+      sortBy: "name",
       onQuitFailure: "prompt",
     });
   });
@@ -72,6 +76,9 @@ describe("config storage", () => {
         defaultSelectAll: true,
         neverQuitMusic: false,
         autoUpdate: true,
+        protectSystemApps: true,
+        quitTimeoutMs: 8000,
+        confirmThreshold: 4,
         musicApps: ["MyCustomPlayer"],
       },
       TEST_FILE,

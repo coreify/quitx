@@ -10,6 +10,7 @@ import { sleep } from "../utils/sleep";
 import { isAppRunning, isProcessAlive } from "./apps";
 import { buildAppMatcherScript } from "./jxa";
 import { runAppleScript, runJXA, type ScriptExecutor } from "./osascript";
+import { isSystemProtectedApp } from "./system-apps";
 import { isCurrentTerminalApp } from "./terminal";
 
 export const EMPTY_TRASH_SCRIPT = `
@@ -129,7 +130,16 @@ export async function sendQuitSignal(
   }
 
   if (res.trim().toLowerCase() !== "true") {
-    throw new Error(`Could not quit "${app.name}"`);
+    try {
+      const asScript =
+        app.bundleId && app.bundleId !== "missing value"
+          ? `tell application id "${escapeAppleScriptString(app.bundleId)}" to quit`
+          : `tell application "${escapeAppleScriptString(app.name)}" to quit`;
+      await runAppleScript(asScript, executor);
+      return;
+    } catch {
+      throw new Error(`Could not quit "${app.name}"`);
+    }
   }
 }
 
@@ -165,6 +175,15 @@ export async function quitApp(
   executor?: ScriptExecutor,
   deferredScheduler: DeferredQuitScheduler = defaultDeferredQuitScheduler,
 ): Promise<QuitResult> {
+  if (isSystemProtectedApp(app)) {
+    return {
+      app,
+      success: false,
+      forced: false,
+      error: "System-protected app; refusing to quit",
+    };
+  }
+
   if (options.dryRun) {
     return { app, success: true, forced: options.force ?? false };
   }
@@ -248,18 +267,37 @@ export async function quitApps(
     return [];
   }
 
+  const results: QuitResult[] = [];
+  const allowedApps: AppInfo[] = [];
+
+  for (const app of apps) {
+    if (isSystemProtectedApp(app)) {
+      results.push({
+        app,
+        success: false,
+        forced: false,
+        error: "System-protected app; refusing to quit",
+      });
+    } else {
+      allowedApps.push(app);
+    }
+  }
+
+  if (allowedApps.length === 0) {
+    return results;
+  }
+
   if (options.dryRun) {
-    return apps.map((app) => ({
-      app,
-      success: true,
-      forced: options.force ?? false,
-    }));
+    for (const app of allowedApps) {
+      results.push({ app, success: true, forced: options.force ?? false });
+    }
+    return results;
   }
 
   const currentTerminalApps: AppInfo[] = [];
   const otherApps: AppInfo[] = [];
 
-  for (const app of apps) {
+  for (const app of allowedApps) {
     if (isCurrentTerminalApp(app)) {
       currentTerminalApps.push(app);
     } else {
@@ -267,15 +305,27 @@ export async function quitApps(
     }
   }
 
-  const results: QuitResult[] = [];
-
   if (otherApps.length > 0) {
     const maxTimeoutMs = options.timeoutMs ?? DEFAULT_QUIT_TIMEOUT_MS;
     const pollIntervalMs = Math.min(150, maxTimeoutMs);
 
-    await Promise.allSettled(
+    const signalSettled = await Promise.allSettled(
       otherApps.map((app) => sendQuitSignal(app, executor)),
     );
+
+    const signalErrors = new Map<number | string, string>();
+    for (let i = 0; i < otherApps.length; i++) {
+      const app = otherApps[i]!;
+      const outcome = signalSettled[i];
+      const key = app.pid ?? `idx_${i}_${app.name}`;
+      if (outcome && outcome.status === "rejected") {
+        const msg =
+          outcome.reason instanceof Error
+            ? outcome.reason.message
+            : String(outcome.reason);
+        signalErrors.set(key, msg);
+      }
+    }
 
     const pending = new Map<number | string, AppInfo>();
     for (let i = 0; i < otherApps.length; i++) {
@@ -296,7 +346,8 @@ export async function quitApps(
       }
     }
 
-    for (const app of pending.values()) {
+    for (const [key, app] of pending.entries()) {
+      const signalError = signalErrors.get(key);
       if (options.force) {
         const killed = forceQuitApp(app);
         if (killed) {
@@ -311,7 +362,7 @@ export async function quitApps(
           app,
           success: false,
           forced: true,
-          error: "App remained running after force quit",
+          error: signalError ?? "App remained running after force quit",
         });
         continue;
       }
@@ -320,7 +371,9 @@ export async function quitApps(
         app,
         success: false,
         forced: false,
-        error: "App is still running (may have unsaved changes or prompt)",
+        error:
+          signalError ??
+          "App is still running (may have unsaved changes or prompt)",
       });
     }
   }
@@ -356,13 +409,17 @@ export async function handleQuitFailures(
     for (const res of failed) {
       const killed = forceQuitApp(res.app);
       if (killed) {
-        res.success = true;
-        res.forced = true;
-        delete res.error;
-      } else {
-        res.forced = true;
-        res.error = "Force quit failed";
+        await sleep(100);
+        const alive = await isAppRunning(res.app);
+        if (!alive) {
+          res.success = true;
+          res.forced = true;
+          delete res.error;
+          continue;
+        }
       }
+      res.forced = true;
+      res.error = "Force quit failed";
     }
     return results;
   }
@@ -384,13 +441,17 @@ export async function handleQuitFailures(
       for (const res of failed) {
         const killed = forceQuitApp(res.app);
         if (killed) {
-          res.success = true;
-          res.forced = true;
-          delete res.error;
-        } else {
-          res.forced = true;
-          res.error = "Force quit failed";
+          await sleep(100);
+          const alive = await isAppRunning(res.app);
+          if (!alive) {
+            res.success = true;
+            res.forced = true;
+            delete res.error;
+            continue;
+          }
         }
+        res.forced = true;
+        res.error = "Force quit failed";
       }
     }
   }

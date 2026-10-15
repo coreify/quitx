@@ -36,6 +36,7 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
     groupBackground: config.groupBackground,
     neverQuitMusic,
     musicApps: options.musicApps ?? config.musicApps,
+    protectSystemApps: config.protectSystemApps,
   });
 
   if (apps.length === 0) {
@@ -73,6 +74,7 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
   const results = await quitApps(apps, {
     force: useForce,
     dryRun: options.dryRun,
+    timeoutMs: config.quitTimeoutMs,
   });
 
   if (!options.json && !options.quiet) {

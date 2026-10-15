@@ -119,12 +119,13 @@ export async function shouldConfirmQuit(
   count: number,
   isAll = false,
   forceYes = false,
+  threshold = 4,
 ): Promise<boolean | symbol> {
   if (forceYes || count === 0) {
     return true;
   }
 
-  if (!isAll && count < 4) {
+  if (!isAll && count < threshold) {
     return true;
   }
 

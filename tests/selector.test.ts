@@ -161,6 +161,26 @@ describe("selector ui", () => {
     expect(mockConfirm).not.toHaveBeenCalled();
   });
 
+  it("shouldConfirmQuit respects custom threshold", async () => {
+    mockConfirm.mockClear();
+    expect(await shouldConfirmQuit(2, false, false, 3)).toBe(true);
+    expect(mockConfirm).not.toHaveBeenCalled();
+
+    mockConfirm.mockResolvedValue(true);
+    const res = await shouldConfirmQuit(3, false, false, 3);
+    expect(res).toBe(true);
+    expect(mockConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "Quit 3 selected apps?" }),
+    );
+  });
+
+  it("shouldConfirmQuit threshold of 1 prompts for any count", async () => {
+    mockConfirm.mockResolvedValue(true);
+    const res = await shouldConfirmQuit(1, false, false, 1);
+    expect(res).toBe(true);
+    expect(mockConfirm).toHaveBeenCalledTimes(1);
+  });
+
   describe("backOption and option hints formatting", () => {
     it("returns correct backOption structure", async () => {
       const { backOption } = await import("../src/ui/selector");

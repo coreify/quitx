@@ -43,6 +43,7 @@ export async function interactiveCommand(
     groupBackground: config.groupBackground,
     neverQuitMusic,
     musicApps: options.musicApps ?? config.musicApps,
+    protectSystemApps: config.protectSystemApps,
     includeMemory: true,
   });
 
@@ -117,7 +118,12 @@ export async function interactiveCommand(
   }
 
   if (!options.yes) {
-    const confirmation = await shouldConfirmQuit(targetApps.length, false);
+    const confirmation = await shouldConfirmQuit(
+      targetApps.length,
+      false,
+      false,
+      config.confirmThreshold,
+    );
     if (isCancel(confirmation) || confirmation !== true) {
       showCancel("Cancelled.");
       printThanks(options);
@@ -136,6 +142,7 @@ export async function interactiveCommand(
   const results = await quitApps(targetApps, {
     force: useForce,
     dryRun: options.dryRun,
+    timeoutMs: config.quitTimeoutMs,
   });
 
   if (!options.json && !options.quiet) {

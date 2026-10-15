@@ -135,6 +135,16 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
       options.includeBackground = true;
     } else if (arg === "--never-quit-music") {
       options.neverQuitMusic = true;
+    } else if (arg === "--music-apps" || arg.startsWith("--music-apps=")) {
+      const isEq = arg.startsWith("--music-apps=");
+      const val = isEq ? arg.slice("--music-apps=".length) : (args[++i] ?? "");
+      const split = val
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (split.length > 0) {
+        options.musicApps = split;
+      }
     } else if (arg === "--config") {
       options.manageConfig = true;
     } else if (arg === "--exclude") {

@@ -83,6 +83,7 @@ export async function restartCommand(
     groupBackground: config.groupBackground,
     neverQuitMusic,
     musicApps: options.musicApps ?? config.musicApps,
+    protectSystemApps: config.protectSystemApps,
     includeMemory: true,
   });
 
@@ -153,8 +154,13 @@ export async function restartCommand(
     targetApps = selected;
   }
 
-  if (!options.yes && targetApps.length >= 4) {
-    const confirmation = await shouldConfirmQuit(targetApps.length, false);
+  if (!options.yes && targetApps.length >= (config.confirmThreshold ?? 4)) {
+    const confirmation = await shouldConfirmQuit(
+      targetApps.length,
+      false,
+      false,
+      config.confirmThreshold,
+    );
     if (isCancel(confirmation) || confirmation !== true) {
       showCancel("Cancelled.");
       printThanks(options);
@@ -185,7 +191,10 @@ export async function restartCommand(
       continue;
     }
 
-    let quitRes = await quitApp(app, { force: useForce });
+    let quitRes = await quitApp(app, {
+      force: useForce,
+      timeoutMs: config.quitTimeoutMs,
+    });
     if (!quitRes.success) {
       const failMode =
         options.onQuitFailure ?? config.onQuitFailure ?? "prompt";

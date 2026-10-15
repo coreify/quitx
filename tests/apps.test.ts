@@ -288,7 +288,10 @@ describe("apps parser and filters", () => {
       },
     ];
 
-    const result = filterApps(raw, { groupBackground: true });
+    const result = filterApps(raw, {
+      groupBackground: true,
+      protectSystemApps: false,
+    });
     expect(result).toHaveLength(1);
     expect(result[0]?.name).toBe("Dock Extra");
     expect(result[0]?.count).toBe(3);
@@ -424,6 +427,9 @@ describe("apps parser and filters", () => {
         neverQuitMusic: false,
         musicApps: [],
         autoUpdate: true,
+        protectSystemApps: true,
+        quitTimeoutMs: 8000,
+        confirmThreshold: 4,
       },
       {},
       mockExecutor,
@@ -484,10 +490,10 @@ describe("apps parser and filters", () => {
     expect(apps[0]?.name).toBe("AppName");
   });
 
-  it("isAppRunning handles script error gracefully", async () => {
+  it("isAppRunning treats script error as still running (conservative)", async () => {
     const mockExecutor = vi.fn().mockRejectedValue(new Error("Script failure"));
     const running = await isAppRunning({ name: "Ghost" }, mockExecutor);
-    expect(running).toBe(false);
+    expect(running).toBe(true);
   });
 
   it("filterApps preserves music apps when neverQuitMusic is explicitly false", () => {
