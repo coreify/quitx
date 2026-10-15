@@ -497,6 +497,62 @@ async function promptConfirmThreshold(): Promise<void> {
   log.success(`Confirm threshold set to ${config.confirmThreshold}+ apps`);
 }
 
+async function toggleConfirmQuitAll(): Promise<void> {
+  const config = loadConfig();
+  const choice = await select({
+    message: `Confirm before quitting all apps (current: ${config.confirmQuitAll ? "enabled" : "disabled"})`,
+    options: [
+      {
+        value: "enabled",
+        label: "Enabled",
+        hint: "quitx --all asks for confirmation before quitting everything.",
+      },
+      {
+        value: "disabled",
+        label: "Disabled",
+        hint: "quitx --all quits immediately without confirmation.",
+      },
+      backOption(),
+    ],
+    initialValue: config.confirmQuitAll ? "enabled" : "disabled",
+  });
+
+  if (isCancel(choice) || choice === BACK_VALUE) return;
+  config.confirmQuitAll = choice === "enabled";
+  saveConfig(config);
+  log.success(
+    `Confirm quit all: ${config.confirmQuitAll ? "enabled" : "disabled"}`,
+  );
+}
+
+async function toggleDisableQuitTips(): Promise<void> {
+  const config = loadConfig();
+  const choice = await select({
+    message: `Quit tips message (current: ${config.disableQuitTips ? "disabled" : "enabled"})`,
+    options: [
+      {
+        value: "enabled",
+        label: "Show tips",
+        hint: "Print the thank-you / tips message after commands.",
+      },
+      {
+        value: "disabled",
+        label: "Hide tips",
+        hint: "Suppress the thank-you message after commands.",
+      },
+      backOption(),
+    ],
+    initialValue: config.disableQuitTips ? "disabled" : "enabled",
+  });
+
+  if (isCancel(choice) || choice === BACK_VALUE) return;
+  config.disableQuitTips = choice === "disabled";
+  saveConfig(config);
+  log.success(
+    `Quit tips message: ${config.disableQuitTips ? "hidden" : "shown"}`,
+  );
+}
+
 async function toggleSortBy(): Promise<void> {
   const config = loadConfig();
   const current = config.sortBy ?? "name";
@@ -513,13 +569,18 @@ async function toggleSortBy(): Promise<void> {
         label: "Memory usage (memory)",
         hint: "Sort applications with highest memory usage first.",
       },
+      {
+        value: "cpu",
+        label: "CPU usage (cpu)",
+        hint: "Sort applications with highest CPU usage first.",
+      },
       backOption(),
     ],
     initialValue: current,
   });
 
   if (isCancel(choice) || choice === BACK_VALUE) return;
-  config.sortBy = choice as "name" | "memory";
+  config.sortBy = choice as "name" | "memory" | "cpu";
   saveConfig(config);
   log.success(`Default sorting set to: ${config.sortBy}`);
 }
@@ -641,6 +702,16 @@ export async function configCommand(): Promise<number> {
           hint: `current: ${config.confirmThreshold}+ apps`,
         },
         {
+          value: "confirm-quit-all",
+          label: "Confirm before quitting all",
+          hint: `current: ${config.confirmQuitAll ? "enabled" : "disabled"}`,
+        },
+        {
+          value: "quit-tips",
+          label: "Quit tips message",
+          hint: `current: ${config.disableQuitTips ? "hidden" : "shown"}`,
+        },
+        {
           value: "reset",
           label: "Reset all",
           hint: "restore all settings to defaults",
@@ -669,6 +740,8 @@ export async function configCommand(): Promise<number> {
     if (choice === "protect-system") await toggleProtectSystemApps();
     if (choice === "quit-timeout") await promptQuitTimeout();
     if (choice === "confirm-threshold") await promptConfirmThreshold();
+    if (choice === "confirm-quit-all") await toggleConfirmQuitAll();
+    if (choice === "quit-tips") await toggleDisableQuitTips();
     if (choice === "reset") resetConfig();
   }
 
@@ -691,6 +764,8 @@ export const VALID_CONFIG_KEYS = [
   "protectSystemApps",
   "quitTimeoutMs",
   "confirmThreshold",
+  "confirmQuitAll",
+  "disableQuitTips",
   "sortBy",
   "onQuitFailure",
 ] as const;
@@ -795,7 +870,9 @@ export async function handleConfigCli(
       key === "defaultSelectAll" ||
       key === "neverQuitMusic" ||
       key === "autoUpdate" ||
-      key === "protectSystemApps"
+      key === "protectSystemApps" ||
+      key === "confirmQuitAll" ||
+      key === "disableQuitTips"
     ) {
       const lower = raw.toLowerCase();
       if (["true", "1", "yes", "on", "enable", "enabled"].includes(lower)) {
@@ -834,11 +911,11 @@ export async function handleConfigCli(
       config[key] = items;
     } else if (key === "sortBy") {
       const lower = raw.toLowerCase();
-      if (lower === "name" || lower === "memory") {
+      if (lower === "name" || lower === "memory" || lower === "cpu") {
         config.sortBy = lower;
       } else {
         console.error(
-          `✖ Invalid value for sortBy: "${raw}". Must be "name" or "memory".`,
+          `✖ Invalid value for sortBy: "${raw}". Must be "name", "memory", or "cpu".`,
         );
         return 1;
       }

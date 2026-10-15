@@ -105,3 +105,25 @@ describe("Sort Apps", () => {
     expect(sorted[1]?.pid).toBe(102);
   });
 });
+
+describe("sortApps cpu", () => {
+  it("sorts descending by cpuUsage", () => {
+    const apps = [
+      { name: "Low", cpuUsage: 1.5 },
+      { name: "High", cpuUsage: 88 },
+      { name: "Mid", cpuUsage: 12 },
+    ];
+    const sorted = sortApps(apps, "cpu");
+    expect(sorted.map((a) => a.name)).toEqual(["High", "Mid", "Low"]);
+  });
+
+  it("breaks cpu ties alphabetically and treats missing cpu as 0", () => {
+    const apps = [
+      { name: "Zeta", cpuUsage: 5 },
+      { name: "Alpha", cpuUsage: 5 },
+      { name: "None" },
+    ];
+    const sorted = sortApps(apps, "cpu");
+    expect(sorted.map((a) => a.name)).toEqual(["Alpha", "Zeta", "None"]);
+  });
+});

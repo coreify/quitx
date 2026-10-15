@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { filterApps } from "../src/macos/apps";
 import { quitApp, quitApps } from "../src/macos/quit";
 import {
+  isQuitxSelf,
   isSystemProtectedApp,
   SYSTEM_PROTECTED_BUNDLE_IDS,
 } from "../src/macos/system-apps";
@@ -136,5 +137,86 @@ describe("quit layer protection", () => {
     expect(results.every((r) => r.error?.includes("System-protected"))).toBe(
       true,
     );
+  });
+});
+
+describe("isQuitxSelf", () => {
+  it("matches all known quitx bundle ids case-insensitively", () => {
+    for (const bid of [
+      "io.coreify.quitx",
+      "com.coreify.quitx",
+      "com.kiron.quitx",
+      "com.quitx.QuitX",
+    ]) {
+      expect(isQuitxSelf({ name: "X", bundleId: bid.toUpperCase() })).toBe(
+        true,
+      );
+    }
+  });
+
+  it("matches the quitx app name", () => {
+    expect(isQuitxSelf({ name: " QuitX " })).toBe(true);
+    expect(isQuitxSelf({ name: "Slack" })).toBe(false);
+  });
+
+  it("treats quitx itself as system-protected", () => {
+    expect(
+      isSystemProtectedApp({ name: "QuitX", bundleId: "io.coreify.quitx" }),
+    ).toBe(true);
+  });
+});
+
+describe("path based protection", () => {
+  it("protects private framework and /usr paths", () => {
+    expect(
+      isSystemProtectedApp({
+        name: "SomeHelper",
+        path: "/System/Library/PrivateFrameworks/Foo.framework/Versions/A/X",
+      }),
+    ).toBe(true);
+    expect(
+      isSystemProtectedApp({ name: "Python", path: "/usr/bin/python3" }),
+    ).toBe(true);
+  });
+
+  it("protects background system paths only when isBackground", () => {
+    const app = {
+      name: "sysd",
+      path: "/System/Library/CoreServices/foo",
+    };
+    expect(isSystemProtectedApp(app)).toBe(false);
+    expect(isSystemProtectedApp({ ...app, isBackground: true })).toBe(true);
+    expect(
+      isSystemProtectedApp({
+        name: "pb",
+        path: "/System/Volumes/Preboot/whatever",
+        isBackground: true,
+      }),
+    ).toBe(true);
+    expect(
+      isSystemProtectedApp({
+        name: "ota",
+        path: "/Library/Apple/System/Support",
+        isBackground: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not protect regular app paths", () => {
+    expect(
+      isSystemProtectedApp({
+        name: "Chrome",
+        path: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      }),
+    ).toBe(false);
+  });
+
+  it("protects the screensaver engine bundle id", () => {
+    expect(
+      isSystemProtectedApp({
+        name: "ScreenSaverEngine",
+        bundleId: "com.apple.screensaver.engine",
+      }),
+    ).toBe(true);
   });
 });

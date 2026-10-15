@@ -430,6 +430,8 @@ describe("apps parser and filters", () => {
         protectSystemApps: true,
         quitTimeoutMs: 8000,
         confirmThreshold: 4,
+        confirmQuitAll: true,
+        disableQuitTips: false,
       },
       {},
       mockExecutor,

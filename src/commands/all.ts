@@ -1,5 +1,6 @@
 import { isCancel, spinner } from "@clack/prompts";
 import { loadConfig } from "../config";
+import { recordQuitResults } from "../config/recent";
 import { getRunningApps } from "../macos/apps";
 import { handleQuitFailures, quitApps } from "../macos/quit";
 import type { CliOptions } from "../types";
@@ -53,7 +54,7 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
     return 0;
   }
 
-  if (!options.yes) {
+  if (!options.yes && config.confirmQuitAll !== false) {
     const confirmation = await shouldConfirmQuit(apps.length, true, false);
     if (isCancel(confirmation) || confirmation !== true) {
       showCancel("Cancelled.");
@@ -82,6 +83,10 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
   }
 
   await handleQuitFailures(results, options, config);
+
+  if (!options.dryRun) {
+    recordQuitResults(results);
+  }
 
   if (!options.json) {
     renderResults(results, options.dryRun);

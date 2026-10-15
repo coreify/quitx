@@ -1,9 +1,10 @@
 import { loadConfig } from "../config";
 import type { AppInfo, QuitxConfig } from "../types";
 import { APPKIT_PREAMBLE, RUNNING_APPS, buildAppMatcherScript } from "./jxa";
+import { enrichAppsWithCpu } from "./cpu";
 import { enrichAppsWithMemory } from "./memory";
 import { runJXA, type ScriptExecutor } from "./osascript";
-import { isSystemProtectedApp } from "./system-apps";
+import { isQuitxSelf, isSystemProtectedApp } from "./system-apps";
 
 export function buildDiscoveryScript(includeBackground = false): string {
   const bg = includeBackground ? "true" : "false";
@@ -51,7 +52,15 @@ function run() {
       }
     }
     const winCount = winInfoSuccess ? String(winCountByPid[app.processIdentifier] || 0) : '';
-    lines.push(name + '\\t' + bundleId + '\\t' + pid + '\\t' + isBg + '\\t' + isMusic + '\\t' + winCount);
+    let path = '';
+    try {
+      if (app.bundleURL) {
+        path = app.bundleURL.path ? app.bundleURL.path.js : '';
+      } else if (app.executableURL) {
+        path = app.executableURL.path ? app.executableURL.path.js : '';
+      }
+    } catch (e) {}
+    lines.push(name + '\\t' + bundleId + '\\t' + pid + '\\t' + isBg + '\\t' + isMusic + '\\t' + winCount + '\\t' + path);
   }
   return lines.join('\\n');
 }`.trim();
@@ -131,6 +140,12 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
           ? winCountNum
           : undefined;
 
+      const rawPath = parts[6]?.trim();
+      const path =
+        rawPath && rawPath.length > 0 && rawPath !== "missing value"
+          ? rawPath
+          : undefined;
+
       let name = rawName;
       if (bundleId && rawName === bundleId) {
         name = formatDynamicName(bundleId);
@@ -139,6 +154,7 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
       results.push({
         name,
         bundleId,
+        path,
         pid,
         ...(isBackground ? { isBackground: true } : {}),
         ...(isMusic ? { isMusic: true } : {}),
@@ -160,7 +176,7 @@ export function parseAppListOutput(stdout: string): AppInfo[] {
 
 export function sortApps(
   apps: readonly AppInfo[],
-  sortBy: "name" | "memory" = "name",
+  sortBy: "name" | "memory" | "cpu" = "name",
 ): AppInfo[] {
   return [...apps].sort((a, b) => {
     if (sortBy === "memory") {
@@ -168,6 +184,12 @@ export function sortApps(
       const memB = b.memoryBytes ?? 0;
       if (memB !== memA) {
         return memB - memA;
+      }
+    } else if (sortBy === "cpu") {
+      const cpuA = a.cpuUsage ?? 0;
+      const cpuB = b.cpuUsage ?? 0;
+      if (cpuB !== cpuA) {
+        return cpuB - cpuA;
       }
     }
     return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
@@ -241,7 +263,7 @@ export interface FilterOptions {
   exclude?: readonly string[] | undefined;
   keep?: readonly string[] | undefined;
   windowless?: boolean | undefined;
-  sortBy?: "name" | "memory" | undefined;
+  sortBy?: "name" | "memory" | "cpu" | undefined;
   includeFinder?: boolean | undefined;
   includeTrash?: boolean | undefined;
   groupBackground?: boolean | undefined;
@@ -276,7 +298,7 @@ export function filterApps(
     const nameLower = app.name.toLowerCase().trim();
     const bundleLower = app.bundleId?.toLowerCase().trim();
 
-    if (nameLower === "quitx" || bundleLower === "com.kiron.quitx") {
+    if (isQuitxSelf(app)) {
       continue;
     }
 
@@ -398,7 +420,7 @@ export interface GetRunningAppsOptions {
   exclude?: readonly string[] | undefined;
   keep?: readonly string[] | undefined;
   windowless?: boolean | undefined;
-  sortBy?: "name" | "memory" | undefined;
+  sortBy?: "name" | "memory" | "cpu" | undefined;
   includeFinder?: boolean | undefined;
   includeTrash?: boolean | undefined;
   includeBackground?: boolean | undefined;
@@ -465,6 +487,11 @@ export async function getRunningApps(
 
   if (includeMemory || filterOpts.sortBy === "memory") {
     await enrichAppsWithMemory(filtered);
+    return sortApps(filtered, filterOpts.sortBy);
+  }
+
+  if (filterOpts.sortBy === "cpu") {
+    await enrichAppsWithCpu(filtered);
     return sortApps(filtered, filterOpts.sortBy);
   }
 

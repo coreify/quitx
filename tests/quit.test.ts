@@ -472,4 +472,114 @@ describe("quit service", () => {
   it("forceQuitApp returns false when no pid is present", () => {
     expect(forceQuitApp({ name: "Ghost" })).toBe(false);
   });
+  it("quitApp closes Finder windows without polling", async () => {
+    const mockExecutor: ScriptExecutor = vi.fn().mockResolvedValue({
+      stdout: "",
+    });
+    const res = await quitApp(
+      { name: "Finder", bundleId: "com.apple.finder" },
+      { timeoutMs: 1 },
+      mockExecutor,
+    );
+    expect(res.success).toBe(true);
+    expect(res.forced).toBe(false);
+    const calls = (mockExecutor as ReturnType<typeof vi.fn>).mock.calls as [
+      string,
+      string[],
+    ][];
+    expect(calls).toHaveLength(1);
+    expect(String(calls[0]?.[1]?.[1])).toContain("close every window");
+  });
+
+  it("quitApp reports Finder close failures", async () => {
+    const mockExecutor: ScriptExecutor = vi
+      .fn()
+      .mockRejectedValue(new Error("Finder is busy"));
+    const res = await quitApp({ name: "Finder" }, {}, mockExecutor);
+    expect(res.success).toBe(false);
+    expect(res.error).toContain("Finder is busy");
+  });
+
+  it("quitApps routes Finder through close-windows and others through quit", async () => {
+    const scriptCalls: string[] = [];
+    const mockExecutor: ScriptExecutor = vi
+      .fn()
+      .mockImplementation((_cmd: string, args: readonly string[]) => {
+        const script =
+          args[0] === "-l" ? String(args[3] ?? "") : String(args[1] ?? "");
+        if (script.includes("close every window")) {
+          scriptCalls.push(script);
+          return Promise.resolve({ stdout: "" });
+        }
+        if (script.includes(".terminate()")) {
+          return Promise.resolve({ stdout: "true" });
+        }
+        return Promise.resolve({ stdout: "false" });
+      });
+
+    const results = await quitApps(
+      [
+        { name: "Finder", bundleId: "com.apple.finder" },
+        { name: "Slack", bundleId: "com.tinyspeck.slackmacgap" },
+      ],
+      { timeoutMs: 1 },
+      mockExecutor,
+    );
+
+    expect(results).toHaveLength(2);
+    const finder = results.find((r) => r.app.name === "Finder");
+    const slack = results.find((r) => r.app.name === "Slack");
+    expect(finder?.success).toBe(true);
+    expect(slack?.success).toBe(true);
+    expect(scriptCalls.some((s) => s.includes("close every window"))).toBe(
+      true,
+    );
+  });
+
+  it("quitApps reports Finder close failures alongside other results", async () => {
+    const mockExecutor: ScriptExecutor = vi
+      .fn()
+      .mockImplementation((_cmd: string, args: readonly string[]) => {
+        const script =
+          args[0] === "-l" ? String(args[3] ?? "") : String(args[1] ?? "");
+        if (script.includes("close every window")) {
+          return Promise.reject(new Error("close failed"));
+        }
+        if (script.includes(".terminate()")) {
+          return Promise.resolve({ stdout: "true" });
+        }
+        return Promise.resolve({ stdout: "false" });
+      });
+
+    const results = await quitApps(
+      [
+        { name: "Finder", bundleId: "com.apple.finder" },
+        { name: "Slack", bundleId: "com.tinyspeck.slackmacgap" },
+      ],
+      { timeoutMs: 1 },
+      mockExecutor,
+    );
+    const finder = results.find((r) => r.app.name === "Finder");
+    expect(finder?.success).toBe(false);
+    expect(finder?.error).toContain("close failed");
+    expect(results.find((r) => r.app.name === "Slack")?.success).toBe(true);
+  });
+
+  it("quit JXA script targets helper processes under the app bundle", async () => {
+    const mockExecutor: ScriptExecutor = vi.fn().mockResolvedValue({
+      stdout: "true",
+    });
+    await sendQuitSignal(
+      { name: "Chrome", bundleId: "com.google.Chrome", pid: 5 },
+      mockExecutor,
+    );
+    const calls = (mockExecutor as ReturnType<typeof vi.fn>).mock.calls as [
+      string,
+      string[],
+    ][];
+    const script = String(calls[0]?.[1]?.[3]);
+    expect(script).toContain("/Contents/");
+    expect(script).toContain("helper.terminate()");
+    expect(script).toContain("root.terminate()");
+  });
 });

@@ -51,6 +51,8 @@ const fullConfig = (overrides: Partial<QuitxConfig> = {}): QuitxConfig => ({
   protectSystemApps: true,
   quitTimeoutMs: 8000,
   confirmThreshold: 4,
+  confirmQuitAll: true,
+  disableQuitTips: false,
   ...overrides,
 });
 

@@ -1,5 +1,6 @@
 import { isCancel, log, spinner } from "@clack/prompts";
 import { loadConfig } from "../config";
+import { recordQuitResults } from "../config/recent";
 import { getRunningApps } from "../macos/apps";
 import { handleQuitFailures, quitApps } from "../macos/quit";
 import type { AppInfo, CliOptions } from "../types";
@@ -150,6 +151,10 @@ export async function interactiveCommand(
   }
 
   await handleQuitFailures(results, options, config);
+
+  if (!options.dryRun) {
+    recordQuitResults(results);
+  }
 
   if (!options.json) {
     renderResults(results, options.dryRun);

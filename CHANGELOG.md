@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New config options: `protectSystemApps` (bool), `quitTimeoutMs` (1000–60000, default `8000`) controlling how long quit waits before reporting failure, and `confirmThreshold` (1–50, default `4`) controlling how many selected apps trigger the confirmation prompt. All three editable via the config menu and `quitx config set <key> <value>`.
 - `--music-apps <apps>` CLI flag to add apps to the music-protect list for a single run.
 - AppleScript quit fallback is also attempted when the JXA terminate call returns non-`true` (previously only on JXA errors), improving quit reliability for apps with save prompts.
+- Undo recently quit apps (`quitx undo`): quitx now records successfully quit apps (up to 5, excluding Finder/Trash) in `~/.quitx/recently-quit.json` and the new `undo` command reopens them in reverse order. Supports `--yes`, `--dry-run`, `--json`, and `--quiet`.
+- CPU usage metrics & sorting: per-app CPU sampling from `ps`, shown in lists and `--sort cpu` / `sortBy: "cpu"` to sort running apps descending by CPU usage.
+- Self-protection: quitx can no longer quit or list itself (bundle ids `io.coreify.quitx`, `com.coreify.quitx`, `com.kiron.quitx`, `com.quitx.quitx`, or the app name `QuitX`), matching the desktop app behavior.
+- Path-based system protection: apps under `/System/Library/PrivateFrameworks/` and `/usr/` are always protected; apps under `/System/Library/`, `/System/Volumes/Preboot/`, or `/Library/Apple/System/` are protected when running as background processes. `com.apple.screensaver.engine` added to the protected bundle id list.
+- Quitting Finder now closes all Finder windows (instead of no-op / error), matching the desktop app; Finder window-close failures are reported per-app.
+- Quitting an app now also terminates helper processes bundled inside the app (same bundle id prefix under `<app>/Contents/`), not just the root process.
+- New config keys: `confirmQuitAll` (default `true`) to require confirmation before `quitx --all`, and `disableQuitTips` (default `false`) to suppress the thank-you message. Both editable via the config menu and `quitx config set <key> <value>`.
+- Seed music apps: new installs default to `Music`, `Spotify`, `Deezer`, `Tidal`, `Doppler` instead of an empty music-protect list (an empty saved list is still respected).
 
 ### Fixed
 

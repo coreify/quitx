@@ -8,7 +8,7 @@ import type {
 } from "../types";
 import { sleep } from "../utils/sleep";
 import { isAppRunning, isProcessAlive } from "./apps";
-import { buildAppMatcherScript } from "./jxa";
+import { APPKIT_PREAMBLE, RUNNING_APPS } from "./jxa";
 import { runAppleScript, runJXA, type ScriptExecutor } from "./osascript";
 import { isSystemProtectedApp } from "./system-apps";
 import { isCurrentTerminalApp } from "./terminal";
@@ -24,24 +24,87 @@ ignoring application responses
 end ignoring
 `.trim();
 
-const QUIT_JXA_SCRIPT = buildAppMatcherScript(`
-const bundleId = argv[0] || '';
-const name = argv[1] || '';
-const pidStr = argv[2] || '';
-const targetPid = pidStr ? parseInt(pidStr, 10) : 0;
-const bid = app.bundleIdentifier ? app.bundleIdentifier.js : '';
-const nm = app.localizedName ? app.localizedName.js : '';
-const appPid = app.processIdentifier;
+export const FINDER_CLOSE_WINDOWS_SCRIPT = `
+with timeout of 2 seconds
+    tell application "Finder"
+        close every window
+    end tell
+end timeout
+`.trim();
 
-const matches = targetPid
-  ? appPid === targetPid
-  : ((bundleId && bid === bundleId) || (name && nm.toLowerCase() === name.toLowerCase()));
-
-if (matches) {
-  const res = typeof app.terminate === 'function' ? app.terminate() : app.terminate;
-  return String(res);
+function isFinderApp(app: AppInfo): boolean {
+  return (
+    app.bundleId === "com.apple.finder" || app.name.toLowerCase() === "finder"
+  );
 }
-`);
+
+const QUIT_JXA_SCRIPT = `${APPKIT_PREAMBLE}
+function run(argv) {
+    const bundleId = argv[0] || '';
+    const name = argv[1] || '';
+    const pidStr = argv[2] || '';
+    const targetPid = pidStr ? parseInt(pidStr, 10) : 0;
+    const apps = ${RUNNING_APPS};
+    let root = null;
+    let rootBid = '';
+    for (let i = 0; i < apps.count; i++) {
+        const candidate = apps.objectAtIndex(i);
+        const bid = candidate.bundleIdentifier ? candidate.bundleIdentifier.js : '';
+        const nm = candidate.localizedName ? candidate.localizedName.js : '';
+        const candPid = candidate.processIdentifier;
+        const matches = targetPid
+            ? candPid === targetPid
+            : ((bundleId && bid === bundleId) || (name && nm.toLowerCase() === name.toLowerCase()));
+        if (matches) {
+            root = candidate;
+            rootBid = bid;
+            break;
+        }
+    }
+    if (!root) {
+        return 'false';
+    }
+    let rootPath = '';
+    try {
+        if (root.bundleURL && root.bundleURL.path) {
+            rootPath = root.bundleURL.path.js;
+        }
+    } catch (e) {}
+    let res;
+    try {
+        res = typeof root.terminate === 'function' ? root.terminate() : root.terminate;
+    } catch (e) {
+        res = 'false';
+    }
+    const helperBase = bundleId || rootBid;
+    if (rootPath && helperBase) {
+        const prefix = helperBase + '.';
+        const contentPrefix = rootPath + '/Contents/';
+        const rootPid = root.processIdentifier;
+        for (let j = 0; j < apps.count; j++) {
+            const helper = apps.objectAtIndex(j);
+            if (helper.processIdentifier === rootPid) continue;
+            let helperBid = '';
+            try {
+                helperBid = helper.bundleIdentifier ? helper.bundleIdentifier.js : '';
+            } catch (e) {}
+            if (!helperBid || (helperBid !== helperBase && helperBid.indexOf(prefix) !== 0)) continue;
+            let helperPath = '';
+            try {
+                if (helper.bundleURL && helper.bundleURL.path) {
+                    helperPath = helper.bundleURL.path.js;
+                }
+            } catch (e) {}
+            if (helperPath.indexOf(contentPrefix) !== 0) continue;
+            try {
+                if (typeof helper.terminate === 'function') {
+                    helper.terminate();
+                }
+            } catch (e) {}
+        }
+    }
+    return String(res);
+}`;
 
 function shellQuote(value: string): string {
   return `'${value.replace(/'/g, "'\\''")}'`;
@@ -188,6 +251,19 @@ export async function quitApp(
     return { app, success: true, forced: options.force ?? false };
   }
 
+  if (isFinderApp(app)) {
+    try {
+      await runAppleScript(FINDER_CLOSE_WINDOWS_SCRIPT, executor);
+      return { app, success: true, forced: false };
+    } catch (error: unknown) {
+      const errorMsg =
+        error instanceof Error
+          ? error.message
+          : "Failed to close Finder windows";
+      return { app, success: false, forced: false, error: errorMsg };
+    }
+  }
+
   if (isCurrentTerminalApp(app)) {
     deferredScheduler(app, options.force ?? false);
     return { app, success: true, forced: options.force ?? false };
@@ -295,13 +371,33 @@ export async function quitApps(
   }
 
   const currentTerminalApps: AppInfo[] = [];
+  const finderApps: AppInfo[] = [];
   const otherApps: AppInfo[] = [];
 
   for (const app of allowedApps) {
     if (isCurrentTerminalApp(app)) {
       currentTerminalApps.push(app);
+    } else if (isFinderApp(app)) {
+      finderApps.push(app);
     } else {
       otherApps.push(app);
+    }
+  }
+
+  for (const finderApp of finderApps) {
+    try {
+      await runAppleScript(FINDER_CLOSE_WINDOWS_SCRIPT, executor);
+      results.push({ app: finderApp, success: true, forced: false });
+    } catch (error: unknown) {
+      results.push({
+        app: finderApp,
+        success: false,
+        forced: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to close Finder windows",
+      });
     }
   }
 

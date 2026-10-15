@@ -26,11 +26,13 @@ export const DEFAULT_CONFIG: QuitxConfig = {
   groupBackground: true,
   defaultSelectAll: true,
   neverQuitMusic: false,
-  musicApps: [],
+  musicApps: ["Music", "Spotify", "Deezer", "Tidal", "Doppler"],
   autoUpdate: true,
   protectSystemApps: true,
   quitTimeoutMs: 8000,
   confirmThreshold: 4,
+  confirmQuitAll: true,
+  disableQuitTips: false,
   sortBy: "name",
   onQuitFailure: "prompt",
 };
@@ -38,12 +40,12 @@ export const DEFAULT_CONFIG: QuitxConfig = {
 export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
   try {
     if (!existsSync(filePath)) {
-      return { ...DEFAULT_CONFIG, exclude: [], musicApps: [] };
+      return { ...DEFAULT_CONFIG, exclude: [] };
     }
     const raw = readFileSync(filePath, "utf-8");
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== "object" || parsed === null) {
-      return { ...DEFAULT_CONFIG, exclude: [], musicApps: [] };
+      return { ...DEFAULT_CONFIG, exclude: [] };
     }
 
     const obj = parsed as Record<string, unknown>;
@@ -105,6 +107,16 @@ export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
         ? Math.round(obj.confirmThreshold)
         : DEFAULT_CONFIG.confirmThreshold;
 
+    const confirmQuitAllVal =
+      typeof obj.confirmQuitAll === "boolean"
+        ? obj.confirmQuitAll
+        : DEFAULT_CONFIG.confirmQuitAll;
+
+    const disableQuitTipsVal =
+      typeof obj.disableQuitTips === "boolean"
+        ? obj.disableQuitTips
+        : DEFAULT_CONFIG.disableQuitTips;
+
     const result: QuitxConfig = {
       exclude: Array.isArray(obj.exclude) ? (obj.exclude as string[]) : [],
       force:
@@ -133,17 +145,19 @@ export function loadConfig(filePath = CONFIG_FILE): QuitxConfig {
       protectSystemApps: protectSystemAppsVal,
       quitTimeoutMs: quitTimeoutMsVal,
       confirmThreshold: confirmThresholdVal,
+      confirmQuitAll: confirmQuitAllVal,
+      disableQuitTips: disableQuitTipsVal,
       onQuitFailure: onQuitFailureVal,
     };
 
     result.sortBy =
-      obj.sortBy === "memory" || obj.sortBy === "name"
+      obj.sortBy === "memory" || obj.sortBy === "name" || obj.sortBy === "cpu"
         ? obj.sortBy
         : DEFAULT_CONFIG.sortBy;
 
     return result;
   } catch {
-    return { ...DEFAULT_CONFIG, exclude: [], musicApps: [] };
+    return { ...DEFAULT_CONFIG, exclude: [] };
   }
 }
 

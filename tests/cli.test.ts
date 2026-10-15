@@ -233,6 +233,19 @@ describe("cli parser and dispatcher", () => {
     interactiveSpy.mockRestore();
   });
 
+  it("dispatches to undo command when undo passed", async () => {
+    const undoModule = await import("../src/commands/undo");
+    const undoSpy = vi.spyOn(undoModule, "undoCommand").mockResolvedValue(0);
+
+    const code = await main(["undo"]);
+    expect(code).toBe(0);
+    expect(undoSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ command: "undo" }),
+    );
+
+    undoSpy.mockRestore();
+  });
+
   it("handles check-update with json output", async () => {
     const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -299,6 +312,8 @@ describe("cli parser and dispatcher", () => {
       protectSystemApps: true,
       quitTimeoutMs: 8000,
       confirmThreshold: 4,
+      confirmQuitAll: true,
+      disableQuitTips: false,
     });
     await handleAutoUpdateCheck("1.0.0", {});
     expect(checkSpy).not.toHaveBeenCalled();
@@ -400,6 +415,12 @@ describe("cli parser and dispatcher", () => {
     expect(parseCliArgs(["--quiet"]).quiet).toBe(true);
     expect(parseCliArgs(["--sort=MEMORY"]).sortBy).toBe("memory");
     expect(parseCliArgs(["--sort", "NAME"]).sortBy).toBe("name");
+    expect(parseCliArgs(["--sort", "CPU"]).sortBy).toBe("cpu");
+    expect(parseCliArgs(["--sort=cpu"]).sortBy).toBe("cpu");
+    expect(() => parseCliArgs(["--sort", "pid"])).toThrow(
+      /Invalid sort option/,
+    );
+    expect(parseCliArgs(["undo"]).command).toBe("undo");
     expect(parseCliArgs(["--on-quit-failure=FORCE"]).onQuitFailure).toBe(
       "force",
     );
