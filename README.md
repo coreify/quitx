@@ -19,14 +19,16 @@ npx @coreify/quitx
 ## Quick Start
 
 ```bash
-quitx                   # Interactive picker with memory usage
+quitx                   # Interactive picker with memory & CPU usage
 quitx -w                # Clean up closed-window apps (zero open windows)
 quitx -w -y             # Immediately quit all windowless apps
 quitx -a                # Quit all running apps
 quitx -a --keep Spotify # Quit all apps except Spotify (one-time)
 quitx --sort memory     # Sort apps by highest memory consumption
+quitx --sort cpu        # Sort apps by highest CPU usage
 quitx Slack,Discord     # Quit specific apps
 quitx restart Discord   # Quit and reopen an app
+quitx undo              # Reopen recently quit apps
 quitx stash             # Stash running apps and quit
 quitx restore           # Restore stashed session
 ```
