@@ -13,7 +13,7 @@ import {
 import { shouldConfirmQuit } from "../ui/selector";
 
 export async function allCommand(options: CliOptions = {}): Promise<number> {
-  if (!options.json) {
+  if (!options.json && !options.quiet) {
     showIntro();
   }
 
@@ -62,7 +62,7 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
   }
 
   const s = spinner();
-  if (!options.json) {
+  if (!options.json && !options.quiet) {
     s.start(
       options.dryRun
         ? `Simulating quit for ${apps.length} apps...`
@@ -75,7 +75,7 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
     dryRun: options.dryRun,
   });
 
-  if (!options.json) {
+  if (!options.json && !options.quiet) {
     s.stop(options.dryRun ? "Dry run complete" : "Quitting complete");
   }
 
@@ -85,8 +85,10 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
     renderResults(results, options.dryRun);
     const successCount = results.filter((r) => r.success).length;
     const actionVerb = options.dryRun ? "Would quit" : "Quit";
-    showOutro(`${actionVerb} ${successCount} of ${apps.length} apps.`);
-    printThanks(options);
+    if (!options.quiet) {
+      showOutro(`${actionVerb} ${successCount} of ${apps.length} apps.`);
+      printThanks(options);
+    }
   } else {
     console.log(
       JSON.stringify(
@@ -101,5 +103,5 @@ export async function allCommand(options: CliOptions = {}): Promise<number> {
     );
   }
 
-  return 0;
+  return results.some((r) => !r.success) ? 1 : 0;
 }

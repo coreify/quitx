@@ -46,6 +46,10 @@ function shellQuote(value: string): string {
   return `'${value.replace(/'/g, "'\\''")}'`;
 }
 
+function escapeAppleScriptString(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
 export type DeferredQuitScheduler = (app: AppInfo, force: boolean) => void;
 
 export function defaultDeferredQuitScheduler(
@@ -113,8 +117,8 @@ export async function sendQuitSignal(
     try {
       const asScript =
         app.bundleId && app.bundleId !== "missing value"
-          ? `tell application id "${app.bundleId}" to quit`
-          : `tell application "${app.name}" to quit`;
+          ? `tell application id "${escapeAppleScriptString(app.bundleId)}" to quit`
+          : `tell application "${escapeAppleScriptString(app.name)}" to quit`;
       await runAppleScript(asScript, executor);
       return;
     } catch {

@@ -7,7 +7,6 @@ export const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
 export const MANUAL_RATE_LIMIT_MS = 60 * 1000; // 60 seconds
 const REQUEST_TIMEOUT_MS = 1_500;
 const REGISTRY_URL = "https://registry.npmjs.org/@coreify%2Fquitx/latest";
-const FALLBACK_REGISTRY_URL = "https://registry.npmjs.org/quitx/latest";
 export const RELEASE_URL = "https://github.com/coreify/quitx/releases/latest";
 
 export interface UpdateCache {
@@ -136,34 +135,31 @@ export async function writeCache(
 export async function fetchLatestVersion(
   fetcher: typeof fetch = fetch,
 ): Promise<string> {
-  const urls = [REGISTRY_URL, FALLBACK_REGISTRY_URL];
-  for (const url of urls) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-    timer.unref();
-    try {
-      const response = await fetcher(url, {
-        headers: { accept: "application/json" },
-        signal: controller.signal,
-      });
-      if (!response.ok) continue;
-      const value: unknown = await response.json();
-      if (
-        typeof value === "object" &&
-        value !== null &&
-        "version" in value &&
-        typeof value.version === "string" &&
-        parseVersion(value.version)
-      ) {
-        return value.version;
-      }
-    } catch {
-      // try next url
-    } finally {
-      clearTimeout(timer);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  timer.unref();
+  try {
+    const response = await fetcher(REGISTRY_URL, {
+      headers: { accept: "application/json" },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`npm registry responded with ${response.status}`);
     }
+    const value: unknown = await response.json();
+    if (
+      typeof value === "object" &&
+      value !== null &&
+      "version" in value &&
+      typeof value.version === "string" &&
+      parseVersion(value.version)
+    ) {
+      return value.version;
+    }
+    throw new Error("Invalid version payload from npm registry");
+  } finally {
+    clearTimeout(timer);
   }
-  throw new Error("Unable to fetch latest version from npm registry");
 }
 
 export async function checkForUpdate(

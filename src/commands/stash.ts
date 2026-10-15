@@ -113,5 +113,5 @@ export async function stashCommand(options: CliOptions = {}): Promise<number> {
     );
   }
 
-  return 0;
+  return results.some((r) => !r.success) ? 1 : 0;
 }

@@ -207,7 +207,9 @@ export function parseCliArgs(args: readonly string[]): CliOptions {
         );
       }
     } else if (arg.startsWith("-")) {
-      continue;
+      throw new Error(
+        `Unknown option: "${arg}". Run "quitx --help" for usage.`,
+      );
     } else {
       rawPositional.push(arg);
     }
@@ -389,6 +391,7 @@ export async function handleAutoUpdateCheck(
 
     if (
       options.json ||
+      options.quiet ||
       options.yes ||
       !process.stdin.isTTY ||
       !process.stdout.isTTY

@@ -225,7 +225,7 @@ describe("Stash & Restore Commands", () => {
         { reopen: reopenMock },
       );
 
-      expect(exitCode).toBe(0);
+      expect(exitCode).toBe(1);
     });
 
     it("cancels restore when user rejects interactive prompt", async () => {

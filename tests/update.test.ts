@@ -320,7 +320,7 @@ describe("installUpdate", () => {
 });
 
 describe("fetchLatestVersion", () => {
-  it("throws error when all registry URLs fail", async () => {
+  it("throws error when registry request fails", async () => {
     const { fetchLatestVersion } = await import("../src/update");
     const mockFetcher: typeof fetch = vi.fn().mockImplementation(() =>
       Promise.resolve({
@@ -329,49 +329,22 @@ describe("fetchLatestVersion", () => {
       } as Response),
     );
     await expect(fetchLatestVersion(mockFetcher)).rejects.toThrow(
-      "Unable to fetch latest version from npm registry",
+      "npm registry responded with 404",
     );
   });
 
-  it("falls back to secondary registry URL when primary fails", async () => {
+  it("throws error when version payload is invalid", async () => {
     const { fetchLatestVersion } = await import("../src/update");
-    let callCount = 0;
-    const mockFetcher: typeof fetch = vi.fn().mockImplementation(() => {
-      callCount++;
-      if (callCount === 1) {
-        return Promise.resolve({ ok: false, status: 500 } as Response);
-      }
-      return Promise.resolve({
+    const mockFetcher: typeof fetch = vi.fn().mockImplementation(() =>
+      Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ version: "2.3.4" }),
-      } as Response);
-    });
+        json: () => Promise.resolve({ not_a_version: "invalid" }),
+      } as Response),
+    );
 
-    const version = await fetchLatestVersion(mockFetcher);
-    expect(version).toBe("2.3.4");
-    expect(callCount).toBe(2);
-  });
-
-  it("skips registry responses with missing or invalid version payload", async () => {
-    const { fetchLatestVersion } = await import("../src/update");
-    let callCount = 0;
-    const mockFetcher: typeof fetch = vi.fn().mockImplementation(() => {
-      callCount++;
-      if (callCount === 1) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ not_a_version: "invalid" }),
-        } as Response);
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ version: "2.3.5" }),
-      } as Response);
-    });
-
-    const version = await fetchLatestVersion(mockFetcher);
-    expect(version).toBe("2.3.5");
-    expect(callCount).toBe(2);
+    await expect(fetchLatestVersion(mockFetcher)).rejects.toThrow(
+      "Invalid version payload from npm registry",
+    );
   });
 });
 

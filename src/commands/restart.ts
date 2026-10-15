@@ -55,12 +55,12 @@ export async function restartCommand(
     wait?: (app: AppInfo) => Promise<boolean>;
   },
 ): Promise<number> {
-  if (!options.json) {
+  if (!options.json && !options.quiet) {
     showIntro();
   }
 
   const s = spinner();
-  if (!options.json) {
+  if (!options.json && !options.quiet) {
     s.start("Scanning running applications...");
   }
 
@@ -86,7 +86,7 @@ export async function restartCommand(
     includeMemory: true,
   });
 
-  if (!options.json) {
+  if (!options.json && !options.quiet) {
     s.stop(
       `Found ${apps.length} running ${apps.length === 1 ? "app" : "apps"}`,
     );
@@ -162,7 +162,7 @@ export async function restartCommand(
     }
   }
 
-  if (!options.json) {
+  if (!options.json && !options.quiet) {
     s.start(
       options.dryRun
         ? `Simulating restart for ${targetApps.length} ${targetApps.length === 1 ? "app" : "apps"}...`
@@ -223,7 +223,21 @@ export async function restartCommand(
       }
     }
 
-    await waitFn(app);
+    const terminated = await waitFn(app);
+    if (!terminated) {
+      const killed = forceQuitApp(app);
+      if (!killed) {
+        results.push({
+          app,
+          success: false,
+          restarted: false,
+          forced: quitRes.forced,
+          error: "App did not terminate in time",
+        });
+        continue;
+      }
+      await waitFn(app);
+    }
 
     try {
       await reopenFn(app);
@@ -245,8 +259,10 @@ export async function restartCommand(
     }
   }
 
-  if (!options.json) {
+  if (!options.json && !options.quiet) {
     s.stop(options.dryRun ? "Dry run complete" : "Restart complete");
+  }
+  if (!options.json) {
     for (const res of results) {
       if (options.dryRun) {
         log.success(`[dry-run] Would restart ${res.app.name}`);
@@ -259,10 +275,12 @@ export async function restartCommand(
 
     const successCount = results.filter((r) => r.restarted).length;
     const actionVerb = options.dryRun ? "Would restart" : "Restarted";
-    showOutro(
-      `Done. ${actionVerb} ${successCount} of ${targetApps.length} apps.`,
-    );
-    printThanks(options);
+    if (!options.quiet) {
+      showOutro(
+        `Done. ${actionVerb} ${successCount} of ${targetApps.length} apps.`,
+      );
+      printThanks(options);
+    }
   } else {
     console.log(
       JSON.stringify(
@@ -277,5 +295,5 @@ export async function restartCommand(
     );
   }
 
-  return 0;
+  return results.some((r) => !r.restarted) ? 1 : 0;
 }

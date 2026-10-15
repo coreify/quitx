@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.3.2
+
+### Fixed
+
+- Restore no longer discards the stash when one or more apps fail to reopen: failed apps are kept in the stash so `quitx restore` can be retried.
+- Non-zero exit codes on partial failures: `quitx`, `quitx --all`, `quitx restart`, `quitx stash`, and `quitx restore` now exit with code `1` when any targeted app fails to quit/restart/restore, enabling script and CI detection.
+- `--quiet` now fully suppresses informational chrome (intro banner, spinners, progress/outro messages) as documented, while still printing per-app results and JSON output.
+- Unknown `-`-prefixed arguments now throw a clear `Unknown option: "..."` error instead of being silently ignored, matching the behavior of `--sort` and `--on-quit-failure`.
+- `restart` now respects the termination wait: if an app does not exit within the timeout it is force-quit before reopening, or reported as failed instead of falsely reporting a restart.
+- AppleScript fallback quit path escapes embedded quotes/backslashes in app names and bundle IDs, preventing script syntax errors for adversarially named apps.
+- Update checks only query the scoped `@coreify/quitx` registry endpoint; the unscoped `quitx` fallback (a typosquat/version-confusion vector) was removed.
+
+### Removed
+
+- Dead `handleQuitAllToggle` / `attachQuitAllBehavior` selector helpers that were never wired into the interactive selector UI.
+
 ## 1.3.1
 
 ### Fixed

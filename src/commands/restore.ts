@@ -1,7 +1,7 @@
 import { confirm, isCancel, log, spinner } from "@clack/prompts";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { clearStash, loadStash } from "../config";
+import { clearStash, loadStash, saveStash } from "../config";
 import type { CliOptions, StashAppEntry } from "../types";
 import { printThanks, showCancel, showIntro, showOutro } from "../ui/output";
 
@@ -90,7 +90,18 @@ export async function restoreCommand(
   }
 
   if (!options.dryRun) {
-    clearStash();
+    const failed = results.filter((r) => !r.success);
+    if (failed.length === 0) {
+      clearStash();
+    } else {
+      saveStash({
+        timestamp: stash.timestamp,
+        apps: failed.map((r) => ({
+          name: r.app.name,
+          bundleId: r.app.bundleId,
+        })),
+      });
+    }
   }
 
   if (!options.json) {
@@ -125,5 +136,6 @@ export async function restoreCommand(
     );
   }
 
-  return 0;
+  const hadFailures = results.some((r) => !r.success);
+  return hadFailures ? 1 : 0;
 }
